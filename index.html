@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>KPK V2.0 | Paint + Плеер + Часы</title>
+    <title>KPK V2.0</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
         
@@ -50,6 +50,8 @@
             cursor: grab;
         }
         
+        .window header:active { cursor: grabbing; }
+        
         .window-buttons { display: flex; gap: 8px; }
         .minimize-btn, .close-btn {
             background: #300;
@@ -70,8 +72,12 @@
             border-radius: 8px;
             padding: 6px 10px;
             cursor: pointer;
-            background: #000;
+            background: #fff;
+            color: #000;
         }
+        
+        button { background: #000; color: #0f0; border-color: #0f0; }
+        button:hover { background: #1a1a1a; }
         
         #topbar {
             background: rgba(10,10,10,0.9);
@@ -115,14 +121,21 @@
             top: 80px;
             left: 20px;
             width: 90%;
-            max-width: 500px;
-            height: 560px;
+            max-width: 520px;
+            height: 580px;
             background: #000;
             display: none;
             flex-direction: column;
             z-index: 100;
             border-radius: 14px;
             overflow: hidden;
+        }
+        
+        .window.dragging {
+            opacity: 0.85;
+            cursor: grabbing;
+            transition: none;
+            box-shadow: 0 0 30px currentColor;
         }
         
         .battery-widget { 
@@ -140,27 +153,26 @@
             cursor: pointer;
         }
         
-        /* PAINT СТИЛИ */
         .paint-tools { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
         #paintCanvas { border: 1px solid; cursor: crosshair; background: #fff; display: block; margin: 0 auto; }
         .color-picker { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 1px solid #fff; }
         
-        /* ПЛЕЕР СТИЛИ */
-        .player-folder { background: #0a0a0a; padding: 8px; margin: 5px 0; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; }
+        .player-folder { background: #0a0a0a; padding: 8px; margin: 5px 0; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; color: #0f0; }
         .player-folder:hover { background: #1a3a1a; }
-        .player-track { padding: 5px 10px; margin: 3px 0; cursor: pointer; border-radius: 4px; display: flex; justify-content: space-between; }
+        .player-track { padding: 8px 10px; margin: 3px 0; cursor: pointer; border-radius: 4px; display: flex; justify-content: space-between; background: #0a0a0a; color: #0f0; }
         .player-track:hover { background: #1a3a1a; }
         .player-controls { display: flex; gap: 10px; justify-content: center; margin: 15px 0; }
-        .add-track { display: flex; gap: 8px; margin-top: 10px; }
-        .add-track input { flex: 1; }
+        .add-track { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        .add-track input { flex: 2; background: #fff; color: #000; border: 1px solid #0f0; }
+        .add-track button { flex: 1; }
+        .mp3-select-btn { background: #0a0a0a; border-color: #ff0; color: #ff0; }
         
-        /* ЧАСЫ СТИЛИ */
         .world-clock { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; max-height: 200px; overflow-y: auto; }
-        .city-clock { background: #0a0a0a; padding: 10px; border-radius: 10px; text-align: center; flex: 1; min-width: 110px; }
+        .city-clock { background: #0a0a0a; padding: 10px; border-radius: 10px; text-align: center; flex: 1; min-width: 110px; color: #0f0; }
         .city-time { font-size: 24px; font-weight: bold; }
         .alarm-input { display: flex; gap: 10px; margin: 15px 0; }
         .alarm-list { margin-top: 10px; }
-        .alarm-item { display: flex; justify-content: space-between; padding: 8px; background: #0a0a0a; margin: 5px 0; border-radius: 6px; }
+        .alarm-item { display: flex; justify-content: space-between; padding: 8px; background: #0a0a0a; margin: 5px 0; border-radius: 6px; color: #0f0; }
         
         .theme-selector { display: flex; gap: 5px; margin-top: 10px; }
         .theme-btn { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid #fff; }
@@ -185,22 +197,25 @@
         #lockTime { font-size: 56px; }
         #lockDate { font-size: 20px; margin-bottom: 30px; }
         
-        /* ТЕМЫ */
         body.theme-green { color: #0f0; }
         body.theme-green .window { border-color: #0f0; }
-        body.theme-green button, body.theme-green .app { border-color: #0f0; color: #0f0; }
+        body.theme-green button, body.theme-green .app { border-color: #0f0; color: #0f0; background: #000; }
+        body.theme-green input { background: #fff; color: #000; border-color: #0f0; }
         
         body.theme-blue { color: #0af; }
         body.theme-blue .window { border-color: #0af; }
-        body.theme-blue button, body.theme-blue .app { border-color: #0af; color: #0af; }
+        body.theme-blue button, body.theme-blue .app { border-color: #0af; color: #0af; background: #000; }
+        body.theme-blue input { background: #fff; color: #000; border-color: #0af; }
         
         body.theme-red { color: #f44; }
         body.theme-red .window { border-color: #f44; }
-        body.theme-red button, body.theme-red .app { border-color: #f44; color: #f44; }
+        body.theme-red button, body.theme-red .app { border-color: #f44; color: #f44; background: #000; }
+        body.theme-red input { background: #fff; color: #000; border-color: #f44; }
         
         body.theme-purple { color: #c8f; }
         body.theme-purple .window { border-color: #c8f; }
-        body.theme-purple button, body.theme-purple .app { border-color: #c8f; color: #c8f; }
+        body.theme-purple button, body.theme-purple .app { border-color: #c8f; color: #c8f; background: #000; }
+        body.theme-purple input { background: #fff; color: #000; border-color: #c8f; }
         
         .folder-item, .file-item {
             padding: 8px;
@@ -209,9 +224,12 @@
             border-radius: 6px;
             cursor: pointer;
             background: #0a0a0a;
+            color: #0f0;
         }
         .folder-item:hover, .file-item:hover { background: #1a3a1a; }
-        .breadcrumb { padding: 8px; background: #0a0a0a; border-radius: 6px; margin-bottom: 10px; font-size: 12px; }
+        .breadcrumb { padding: 8px; background: #0a0a0a; border-radius: 6px; margin-bottom: 10px; font-size: 12px; color: #0f0; }
+        
+        .terminal-line { border-left: 2px solid currentColor; padding-left: 8px; margin: 4px 0; }
     </style>
 </head>
 <body class="theme-green">
@@ -219,7 +237,7 @@
 <div id="shutdown"><div>🔋 КРИТИЧЕСКИЙ РАЗРЯД</div><div style="font-size:58px; margin:20px;">0%</div><button onclick="reboot()">🔄 ПЕРЕЗАГРУЗКА</button></div>
 <div id="lockScreen"><div id="lockTime"></div><div id="lockDate"></div><button onclick="unlock()">🔓 РАЗБЛОКИРОВАТЬ</button></div>
 
-<div id="topbar"><div>⚡ KPK V2.0 | Paint + Плеер + Часы</div><div><span id="clock"></span> <span id="battery">🔋 100%</span></div></div>
+<div id="topbar"><div>⚡ KPK V2.0</div><div><span id="clock"></span> <span id="battery">🔋 100%</span></div></div>
 
 <div class="battery-widget" id="batteryWidget" onclick="openApp('battery')">🔋 100%</div>
 
@@ -249,26 +267,21 @@
         <button onclick="setPaintColor('#ff0')">🟡 Жёлт</button>
         <button onclick="setPaintColor('#fff')">⚪ Бел</button>
         <button onclick="setPaintColor('#000')">⚫ Чёрн</button>
-        <div class="color-picker" style="background:#0f0" onclick="setPaintColor('#0f0')"></div>
-        <div class="color-picker" style="background:#f00" onclick="setPaintColor('#f00')"></div>
-        <div class="color-picker" style="background:#00f" onclick="setPaintColor('#00f')"></div>
-        <div class="color-picker" style="background:#ff0" onclick="setPaintColor('#ff0')"></div>
-        <div class="color-picker" style="background:#fff" onclick="setPaintColor('#fff')"></div>
-        <div class="color-picker" style="background:#000; border-color:#fff" onclick="setPaintColor('#000')"></div>
         <button onclick="clearPaint()">🗑️ Оч</button>
         <button onclick="savePaint()">💾 Сохр</button>
     </div>
-    <canvas id="paintCanvas" width="440" height="400" style="border:1px solid currentColor; width:100%; height:auto; background:#fff;"></canvas>
+    <canvas id="paintCanvas" width="460" height="420" style="border:1px solid currentColor; width:100%; height:auto; background:#fff;"></canvas>
 </div></div>
 
-<!-- ПЛЕЕР С ДОБАВЛЕНИЕМ ПЕСЕН -->
-<div id="player" class="window"><header>🎵 МУЗЫКАЛЬНЫЙ ПЛЕЕР <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('player')">_</button><button class="close-btn" onclick="closeApp('player')">✖</button></div></header>
+<!-- ПЛЕЕР -->
+<div id="player" class="window"><header>🎵 ПЛЕЕР <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('player')">_</button><button class="close-btn" onclick="closeApp('player')">✖</button></div></header>
 <div class="content">
     <div id="playerFolders"></div>
     <div id="playerTracks"></div>
     <div class="add-track">
         <input type="text" id="newTrackName" placeholder="Название песни">
-        <input type="text" id="newTrackUrl" placeholder="Ссылка на аудио (или текст)">
+        <input type="file" id="mp3FileInput" accept=".mp3" style="display:none;">
+        <button onclick="selectMP3File()" class="mp3-select-btn">📁 Выбрать MP3</button>
         <button onclick="addTrackToCurrentFolder()">➕ Добавить</button>
     </div>
     <div class="player-controls">
@@ -280,12 +293,12 @@
     <button onclick="createPlayerFolder()" style="width:100%; margin-top:10px;">📁 Новая папка</button>
 </div></div>
 
-<!-- ЧАСЫ С БУДИЛЬНИКОМ И АЗЕРБАЙДЖАНОМ -->
-<div id="alarm" class="window"><header>⏰ ЧАСЫ И БУДИЛЬНИК <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('alarm')">_</button><button class="close-btn" onclick="closeApp('alarm')">✖</button></div></header>
+<!-- ЧАСЫ С БУДИЛЬНИКОМ -->
+<div id="alarm" class="window"><header>⏰ ЧАСЫ <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('alarm')">_</button><button class="close-btn" onclick="closeApp('alarm')">✖</button></div></header>
 <div class="content">
     <div id="localTime" style="font-size:48px; text-align:center; margin-bottom:10px;">--:--:--</div>
     <div id="localDate" style="text-align:center; margin-bottom:15px;"></div>
-    <div id="locationInfo" style="text-align:center; font-size:12px; margin-bottom:20px;">🌍 Определение местоположения...</div>
+    <div id="locationInfo" style="text-align:center; font-size:12px; margin-bottom:20px;">🌍 Определение...</div>
     
     <h3>🌍 МИРОВЫЕ ЧАСЫ</h3>
     <div class="world-clock" id="worldClock"></div>
@@ -310,7 +323,7 @@
 <div class="content"><div style="display:flex; gap:8px;"><input id="browserUrl" placeholder="kpk://home" value="kpk://home"><button onclick="browserGo()">GO</button></div><div id="browserContent" style="background:#001000; border:1px solid; padding:10px; height:380px; overflow-y:auto; margin-top:10px;"></div></div></div>
 
 <div id="editor" class="window"><header>✏️ РЕДАКТОР <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('editor')">_</button><button class="close-btn" onclick="closeApp('editor')">✖</button></div></header>
-<div class="content"><div style="display:flex; gap:8px; margin-bottom:10px;"><input id="editorFilename" placeholder="имя_файла.txt"><button onclick="editorSave()">💾</button><button onclick="editorLoad()">📂</button></div><textarea id="editorArea" rows="18" style="width:100%; background:#000; border:1px solid;"></textarea></div></div>
+<div class="content"><div style="display:flex; gap:8px; margin-bottom:10px;"><input id="editorFilename" placeholder="имя_файла.txt"><button onclick="editorSave()">💾</button><button onclick="editorLoad()">📂</button></div><textarea id="editorArea" rows="18" style="width:100%; background:#000; border:1px solid #0f0; color:#0f0;"></textarea></div></div>
 
 <div id="games" class="window"><header>🎮 АРКАДЫ <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('games')">_</button><button class="close-btn" onclick="closeApp('games')">✖</button></div></header>
 <div class="content"><div style="display:flex; gap:10px;"><button onclick="startSnakeGame()" style="flex:1;">🐍 ЗМЕЙКА</button><button onclick="startTetrisGame()" style="flex:1;">🧩 ТЕТРИС</button></div><canvas id="snakeCanvas" width="380" height="380" style="border:2px solid; width:100%; background:#000; display:none;"></canvas><canvas id="tetrisCanvas" width="300" height="400" style="border:2px solid; width:100%; background:#000; display:none;"></canvas><div id="gameScore" style="text-align:center;">SCORE: 0</div></div></div>
@@ -319,7 +332,7 @@
 <div class="content"><div id="batLevelBig" style="font-size:52px; text-align:center;"></div><button onclick="charge()">🔌 +20%</button><button onclick="discharge()">📉 -10%</button><div>Авторазряд: <span id="autoDischargeStatus">OFF</span></div><button onclick="toggleAuto()">🔄 АВТОРАЗРЯД</button></div></div>
 
 <div id="notes" class="window"><header>📓 ЗАМЕТКИ <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('notes')">_</button><button class="close-btn" onclick="closeApp('notes')">✖</button></div></header>
-<div class="content"><textarea id="notesArea" style="width:100%; height:400px; background:#000; border:1px solid;"></textarea><button onclick="saveNotes()">💾 СОХРАНИТЬ</button></div></div>
+<div class="content"><textarea id="notesArea" style="width:100%; height:400px; background:#000; border:1px solid #0f0; color:#0f0;"></textarea><button onclick="saveNotes()">💾 СОХРАНИТЬ</button></div></div>
 
 <div id="calc" class="window"><header>🧮 КАЛЬКУЛЯТОР <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('calc')">_</button><button class="close-btn" onclick="closeApp('calc')">✖</button></div></header>
 <div class="content"><input id="calcInput" placeholder="2+2*3"><div style="display:flex; flex-wrap:wrap; gap:5px;"><button onclick="document.getElementById('calcInput').value+='1'">1</button><button onclick="document.getElementById('calcInput').value+='2'">2</button><button onclick="document.getElementById('calcInput').value+='3'">3</button><button onclick="document.getElementById('calcInput').value+='+'">+</button><button onclick="document.getElementById('calcInput').value+='4'">4</button><button onclick="document.getElementById('calcInput').value+='5'">5</button><button onclick="document.getElementById('calcInput').value+='6'">6</button><button onclick="document.getElementById('calcInput').value+='-'">-</button><button onclick="document.getElementById('calcInput').value+='7'">7</button><button onclick="document.getElementById('calcInput').value+='8'">8</button><button onclick="document.getElementById('calcInput').value+='9'">9</button><button onclick="document.getElementById('calcInput').value+='*'">*</button><button onclick="document.getElementById('calcInput').value+='0'">0</button><button onclick="document.getElementById('calcInput').value+='/'">/</button><button onclick="calc()">=</button><button onclick="document.getElementById('calcInput').value=''">C</button></div><div id="calcResult" style="font-size:20px;"></div></div></div>
@@ -327,8 +340,10 @@
 <div id="net" class="window"><header>🌍 СЕТЬ <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('net')">_</button><button class="close-btn" onclick="closeApp('net')">✖</button></div></header>
 <div class="content"><div id="wifi">📶 WiFi: OFF</div><div id="mobile">📱 Mobile: OFF</div><button onclick="toggleNet()">🔁 ВКЛ/ВЫКЛ</button><div id="netStatus">⚫ Offline</div><button onclick="simulatePing()">📡 ПИНГ</button><button onclick="showMyIP()">🌐 МОЙ IP</button><div id="myIpDisplay"></div></div></div>
 
+<!-- ТЕРМИНАЛ С ХАК-КОМАНДАМИ -->
 <div id="hack" class="window"><header>💻 ТЕРМИНАЛ <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('hack')">_</button><button class="close-btn" onclick="closeApp('hack')">✖</button></div></header>
-<div class="content" id="terminal" style="height:340px; overflow-y:auto; font-size:12px;"></div><div style="display:flex; gap:6px; padding:8px;"><span>➜</span><input id="cmd" style="flex:1;" placeholder="help | paint | player | alarm"><button onclick="runCmd()">⏎</button></div></div>
+<div class="content" id="terminal" style="height:340px; overflow-y:auto; font-size:12px;"></div>
+<div style="display:flex; gap:6px; padding:8px;"><span>➜</span><input id="cmd" style="flex:1; background:#fff; color:#000;" placeholder="help | ddos 1.2.3.4 | exploit"><button onclick="runCmd()">⏎</button></div></div>
 
 <div id="settings" class="window"><header>⚙️ НАСТРОЙКИ <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('settings')">_</button><button class="close-btn" onclick="closeApp('settings')">✖</button></div></header>
 <div class="content"><h3>🎨 ТЕМА</h3><div class="theme-selector"><div class="theme-btn theme-green-bg" onclick="setTheme('green')"></div><div class="theme-btn theme-blue-bg" onclick="setTheme('blue')"></div><div class="theme-btn theme-red-bg" onclick="setTheme('red')"></div><div class="theme-btn theme-purple-bg" onclick="setTheme('purple')"></div></div><hr><button onclick="clearStorage()">🗑️ ОЧИСТИТЬ ДАННЫЕ</button></div></div>
@@ -365,7 +380,19 @@ function unlock() { if(batteryLevel > 0) document.getElementById("lockScreen").s
 function updateClock() { document.getElementById("clock").innerText = new Date().toLocaleTimeString(); }
 setInterval(updateClock, 1000); updateClock();
 
-function openApp(id) { if(batteryLevel > 0) { let win = document.getElementById(id); if(win) { win.style.display = "flex"; win.style.zIndex = 1000 + Date.now() % 1000; } } }
+function openApp(id) { 
+    if(batteryLevel <= 0) return;
+    let win = document.getElementById(id);
+    if(win) {
+        win.style.display = "flex";
+        win.style.zIndex = 1000 + Date.now() % 1000;
+        if (!win.style.left || win.style.left === "") {
+            win.style.left = "20px";
+            win.style.top = "80px";
+        }
+        setTimeout(() => fitWindowToScreen(win), 10);
+    }
+}
 function closeApp(id) { let win = document.getElementById(id); if(win) win.style.display = "none"; }
 function minimizeWindow(id) { document.getElementById(id).style.display = "none"; }
 function calc() { try { document.getElementById("calcResult").innerText = "= " + eval(document.getElementById("calcInput").value); } catch(e) { document.getElementById("calcResult").innerText = "Ошибка!"; } }
@@ -376,6 +403,28 @@ function simulatePing() { if(net) alert("🏓 Пинг: "+(Math.floor(Math.rando
 function showMyIP() { 
     let ips = ["192.168.1."+Math.floor(Math.random()*255), "10.0.0."+Math.floor(Math.random()*255)];
     document.getElementById("myIpDisplay").innerHTML = "🌐 Ваш IP: " + ips[Math.floor(Math.random()*ips.length)];
+}
+
+// ========== ФУНКЦИЯ, КОТОРАЯ НЕ ДАЁТ ОКНУ ВЫХОДИТЬ ЗА ЭКРАН ==========
+function fitWindowToScreen(win) {
+    let rect = win.getBoundingClientRect();
+    let maxX = window.innerWidth - rect.width;
+    let maxY = window.innerHeight - rect.height;
+    
+    let newLeft = rect.left;
+    let newTop = rect.top;
+    
+    if (rect.left < 0) newLeft = 10;
+    if (rect.top < 40) newTop = 60;
+    if (rect.left > maxX) newLeft = maxX - 10;
+    if (rect.top > maxY) newTop = maxY - 10;
+    
+    if (newLeft !== rect.left || newTop !== rect.top) {
+        win.style.left = newLeft + "px";
+        win.style.top = newTop + "px";
+        win.style.right = "auto";
+        win.style.bottom = "auto";
+    }
 }
 
 // ========== PAINT ==========
@@ -413,16 +462,25 @@ function setPaintColor(color) { paintColor = color; }
 function clearPaint() { paintCtx.fillStyle = "#fff"; paintCtx.fillRect(0, 0, paintCanvas.width, paintCanvas.height); }
 function savePaint() { let link = document.createElement("a"); link.download = "drawing.png"; link.href = paintCanvas.toDataURL(); link.click(); }
 
-// ========== ПЛЕЕР С ДОБАВЛЕНИЕМ ПЕСЕН ==========
-let playerFolders = JSON.parse(localStorage.getItem('playerFolders')) || { "Моя музыка": [{name: "Demo Track 1", url: ""}, {name: "Demo Track 2", url: ""}] };
+// ========== ПЛЕЕР ==========
+let playerFolders = JSON.parse(localStorage.getItem('playerFolders')) || { "Моя музыка": [] };
 let currentFolder = null;
 let currentTrackObj = null;
-let audioContext = null;
 let currentAudio = null;
+let selectedMP3File = null;
+
+function selectMP3File() { document.getElementById("mp3FileInput").click(); }
+document.getElementById("mp3FileInput").addEventListener("change", function(e) {
+    let file = e.target.files[0];
+    if(file && file.type === "audio/mpeg") {
+        selectedMP3File = file;
+        document.getElementById("newTrackName").value = file.name.replace(".mp3", "");
+        alert(`✅ Выбран MP3: ${file.name}`);
+    } else if(file) { alert("❌ Выберите MP3 файл!"); }
+});
 
 function refreshPlayer() {
     let foldersDiv = document.getElementById("playerFolders");
-    let tracksDiv = document.getElementById("playerTracks");
     if(!foldersDiv) return;
     foldersDiv.innerHTML = "<strong>📁 ПАПКИ:</strong><br>";
     for(let folder in playerFolders) {
@@ -438,7 +496,7 @@ function loadPlayerFolder(folder) {
         let track = playerFolders[folder][i];
         tracksDiv.innerHTML += `<div class="player-track" onclick="selectTrack('${folder}', ${i})"><span>🎵 ${track.name}</span><button onclick="deleteTrack('${folder}', ${i})">🗑️</button></div>`;
     }
-    if(playerFolders[folder].length === 0) tracksDiv.innerHTML += "<div style='color:#888;'>Нет треков. Добавьте через форму выше!</div>";
+    if(playerFolders[folder].length === 0) tracksDiv.innerHTML += "<div style='color:#888;'>Нет треков. Добавьте MP3!</div>";
 }
 function selectTrack(folder, index) {
     currentTrackObj = playerFolders[folder][index];
@@ -448,51 +506,33 @@ function selectTrack(folder, index) {
 }
 function playTrack() {
     if(!currentTrackObj) { alert("Выберите трек!"); return; }
-    if(currentTrackObj.url && currentTrackObj.url.startsWith("http")) {
+    if(currentTrackObj.url && (currentTrackObj.url.startsWith("blob:") || currentTrackObj.url.startsWith("http"))) {
         if(currentAudio) { currentAudio.pause(); currentAudio = null; }
         currentAudio = new Audio(currentTrackObj.url);
         currentAudio.play();
-    } else {
-        if(!audioContext) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            let oscillator = audioContext.createOscillator();
-            let gain = audioContext.createGain();
-            oscillator.connect(gain);
-            gain.connect(audioContext.destination);
-            oscillator.type = "sine";
-            oscillator.frequency.value = 440;
-            gain.gain.value = 0.3;
-            oscillator.start();
-            audioContext.oscillator = oscillator;
-            audioContext.gain = gain;
-        } else if(audioContext.state === "suspended") {
-            audioContext.resume();
-        }
-    }
+    } else { alert("❌ Нет аудио. Добавьте MP3 через кнопку 'Выбрать MP3'"); }
 }
-function pauseTrack() { 
-    if(currentAudio) currentAudio.pause(); 
-    else if(audioContext) audioContext.suspend(); 
-}
-function stopTrack() { 
-    if(currentAudio) { currentAudio.pause(); currentAudio = null; }
-    if(audioContext) { audioContext.close(); audioContext = null; }
-    document.getElementById("nowPlaying").innerHTML = "🎵 Нет трека";
-}
+function pauseTrack() { if(currentAudio) currentAudio.pause(); }
+function stopTrack() { if(currentAudio) { currentAudio.pause(); currentAudio = null; } document.getElementById("nowPlaying").innerHTML = "🎵 Нет трека"; }
 function addTrackToCurrentFolder() {
     let name = document.getElementById("newTrackName").value.trim();
-    let url = document.getElementById("newTrackUrl").value.trim();
     if(!name) { alert("Введите название песни"); return; }
-    if(!currentFolder) { alert("Сначала выберите папку (нажмите на папку в списке)"); return; }
+    if(!currentFolder) { alert("Сначала выберите папку"); return; }
+    if(!selectedMP3File) { alert("Сначала выберите MP3 файл"); return; }
+    let url = URL.createObjectURL(selectedMP3File);
     playerFolders[currentFolder].push({ name: name, url: url });
     localStorage.setItem('playerFolders', JSON.stringify(playerFolders));
     loadPlayerFolder(currentFolder);
     document.getElementById("newTrackName").value = "";
-    document.getElementById("newTrackUrl").value = "";
-    alert(`✅ Трек "${name}" добавлен в папку "${currentFolder}"!`);
+    selectedMP3File = null;
+    document.getElementById("mp3FileInput").value = "";
+    alert(`✅ Трек "${name}" добавлен!`);
 }
 function deleteTrack(folder, index) {
     if(confirm(`Удалить трек "${playerFolders[folder][index].name}"?`)) {
+        if(playerFolders[folder][index].url && playerFolders[folder][index].url.startsWith("blob:")) {
+            URL.revokeObjectURL(playerFolders[folder][index].url);
+        }
         playerFolders[folder].splice(index, 1);
         localStorage.setItem('playerFolders', JSON.stringify(playerFolders));
         loadPlayerFolder(folder);
@@ -508,7 +548,7 @@ function createPlayerFolder() {
 }
 refreshPlayer();
 
-// ========== ЧАСЫ С БУДИЛЬНИКОМ И АЗЕРБАЙДЖАНОМ ==========
+// ========== ЧАСЫ ==========
 let alarms = JSON.parse(localStorage.getItem('alarms')) || [];
 let currentAlarm = null;
 
@@ -517,17 +557,6 @@ function updateTime() {
     document.getElementById("localTime").innerHTML = now.toLocaleTimeString('ru-RU');
     document.getElementById("localDate").innerHTML = now.toLocaleDateString('ru-RU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     
-    // Определение местоположения по IP
-    fetch('https://ipapi.co/json/')
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById("locationInfo").innerHTML = `📍 ${data.city || 'Неизвестно'}, ${data.country_name || ''} | local: ${now.toLocaleTimeString('ru-RU')}`;
-        })
-        .catch(() => {
-            document.getElementById("locationInfo").innerHTML = `📍 Локальное время: ${now.toLocaleTimeString('ru-RU')}`;
-        });
-    
-    // Мировые часы (добавлен Азербайджан - Баку)
     let cities = [
         { name: "🇷🇺 Москва", offset: 3 },
         { name: "🇦🇿 Баку (Азербайджан)", offset: 4 },
@@ -547,13 +576,13 @@ function updateTime() {
     }
     document.getElementById("worldClock").innerHTML = worldHtml;
     
-    // Проверка будильников
     let currentTime = now.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
     for(let alarm of alarms) {
         if(alarm.time === currentTime && !alarm.triggered) {
             alarm.triggered = true;
             document.getElementById("alarmMessage").style.display = "flex";
             currentAlarm = alarm;
+            setTimeout(() => { document.getElementById("alarmMessage").style.display = "none"; }, 5000);
             break;
         }
     }
@@ -581,19 +610,15 @@ function refreshAlarmList() {
         listDiv.innerHTML += `<div class="alarm-item"><span>⏰ ${alarms[i].time}</span><button onclick="removeAlarm(${i})">🗑️</button></div>`;
     }
 }
-function stopAlarm() {
-    document.getElementById("alarmMessage").style.display = "none";
-    if(currentAlarm) currentAlarm.triggered = false;
-}
+function stopAlarm() { document.getElementById("alarmMessage").style.display = "none"; if(currentAlarm) currentAlarm.triggered = false; }
 setInterval(updateTime, 1000);
 updateTime();
 refreshAlarmList();
 
 // ========== ФАЙЛОВАЯ СИСТЕМА ==========
-let fileSystem = JSON.parse(localStorage.getItem('kpk_files')) || { "/": { type: "folder", children: ["system", "documents", "my_music"], content: {} } };
+let fileSystem = JSON.parse(localStorage.getItem('kpk_files')) || { "/": { type: "folder", children: ["system", "documents"], content: {} } };
 if(!fileSystem["/system"]) fileSystem["/system"] = { type: "folder", children: ["config.txt"], content: {} };
 if(!fileSystem["/documents"]) fileSystem["/documents"] = { type: "folder", children: ["readme.txt"], content: {} };
-if(!fileSystem["/my_music"]) fileSystem["/my_music"] = { type: "folder", children: [], content: {} };
 if(!fileSystem["/system/config.txt"]) fileSystem["/system/config.txt"] = { type: "file", content: "system_version=2.0" };
 if(!fileSystem["/documents/readme.txt"]) fileSystem["/documents/readme.txt"] = { type: "file", content: "Добро пожаловать в KPK V2.0!" };
 
@@ -687,14 +712,22 @@ function clearLinesTetris() { let linesCleared = 0; for(let y=0; y<20; y++) if(t
 function drawTetris() {
     tetrisCtx.fillStyle = "black"; tetrisCtx.fillRect(0,0,300,400);
     let cellSize = 20;
-    for(let y=0; y<20; y++) for(let x=0; x<10; x++) if(tetrisBoard[y][x]) { tetrisCtx.fillStyle = getComputedStyle(document.body).color; tetrisCtx.fillRect(x*cellSize, y*cellSize, cellSize-1, cellSize-1); }
-    for(let y=0; y<tetrisCurrentPiece.length; y++) for(let x=0; x<tetrisCurrentPiece[0].length; x++) if(tetrisCurrentPiece[y][x]) { tetrisCtx.fillStyle = getComputedStyle(document.body).color; tetrisCtx.fillRect((tetrisCurrentX+x)*cellSize, (tetrisCurrentY+y)*cellSize, cellSize-1, cellSize-1); }
+    let color = getComputedStyle(document.body).color;
+    for(let y=0; y<20; y++) for(let x=0; x<10; x++) if(tetrisBoard[y][x]) { tetrisCtx.fillStyle = color; tetrisCtx.fillRect(x*cellSize, y*cellSize, cellSize-1, cellSize-1); }
+    for(let y=0; y<tetrisCurrentPiece.length; y++) for(let x=0; x<tetrisCurrentPiece[0].length; x++) if(tetrisCurrentPiece[y][x]) { tetrisCtx.fillStyle = color; tetrisCtx.fillRect((tetrisCurrentX+x)*cellSize, (tetrisCurrentY+y)*cellSize, cellSize-1, cellSize-1); }
 }
 document.addEventListener("keydown", (e) => {
     if(tetrisLoop) {
         if(e.key === "ArrowLeft") { tetrisCurrentX--; if(collisionTetris()) tetrisCurrentX++; drawTetris(); }
         else if(e.key === "ArrowRight") { tetrisCurrentX++; if(collisionTetris()) tetrisCurrentX--; drawTetris(); }
         else if(e.key === "ArrowDown") { tetrisCurrentY++; if(collisionTetris()) tetrisCurrentY--; drawTetris(); }
+        else if(e.key === "ArrowUp") { 
+            let rotated = tetrisCurrentPiece[0].map((_,idx) => tetrisCurrentPiece.map(row => row[idx]).reverse());
+            let oldPiece = tetrisCurrentPiece;
+            tetrisCurrentPiece = rotated;
+            if(collisionTetris()) tetrisCurrentPiece = oldPiece;
+            else drawTetris();
+        }
     }
     if(snakeGameActive) {
         if(e.key === "ArrowUp" && snakeDir.y !== 1) snakeDir = {x:0, y:-1};
@@ -709,15 +742,16 @@ function browserGo() {
     let url = document.getElementById("browserUrl").value.trim().toLowerCase();
     let content = document.getElementById("browserContent");
     if(url === "" || url === "kpk://home") content.innerHTML = `<div style="padding:20px; text-align:center;">🌐 KPK BROWSER<br>📌 kpk://news | kpk://ipgen | kpk://scan</div>`;
-    else if(url === "kpk://news") content.innerHTML = `<div>🔥 НОВОСТИ: KPK V2.0 с Paint, Плеером и Часами!<br>🇦🇿 Добавлен Азербайджан в мировые часы!</div>`;
+    else if(url === "kpk://news") content.innerHTML = `<div>🔥 НОВОСТИ: KPK V2.0 обновлена!</div>`;
     else if(url === "kpk://ipgen") { let ips=[]; for(let i=0;i<20;i++) ips.push(`${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`); content.innerHTML = `<div>🔍 IP:<br>${ips.join('<br>')}<button onclick="browserGoTo('kpk://ipgen')">🔄</button></div>`; }
-    else if(url === "kpk://scan") content.innerHTML = `<div>🔎 ПОРТЫ: 22🔓 80🔓 443🔓</div>`;
+    else if(url === "kpk://scan") content.innerHTML = `<div>🔎 ПОРТЫ: 22🔓 80🔓 443🔓 8080🔓</div>`;
     else content.innerHTML = `<div>❌ Страница не найдена</div>`;
 }
 function browserGoTo(url) { document.getElementById("browserUrl").value = url; browserGo(); }
 
-// ========== ТЕРМИНАЛ ==========
+// ========== ТЕРМИНАЛ С ХАК-КОМАНДАМИ ==========
 let cmdHistory = [], historyIndex = -1;
+
 function runCmd() {
     let input = document.getElementById("cmd");
     let raw = input.value.trim();
@@ -729,9 +763,62 @@ function runCmd() {
     term.innerHTML += `<div class="terminal-line">[${time}] ➜ ${escapeHtml(raw)}</div>`;
     let output = "";
     
-    if(cmd === "help") output = `КОМАНДЫ: help, system, battery, clear, reboot, files, browser, editor, paint, player, alarm, snake, tetris, genpass, weather, iplist, scanip, ports`;
-    else if(cmd === "system") output = `🖥️ KPK V2.0 | Paint + Плеер + Часы (🇦🇿 Баку)\n🔋 ${Math.floor(batteryLevel)}%\n🌐 ${net?"ON":"OFF"}`;
-    else if(cmd === "battery") output = `🔋 Заряд: ${Math.floor(batteryLevel)}%`;
+    // ХАК-КОМАНДЫ
+    if(cmd.startsWith("ddos ")) {
+        let target = cmd.substring(5);
+        let packets = Math.floor(Math.random() * 50000 + 10000);
+        let mbps = Math.floor(Math.random() * 500 + 100);
+        output = `💣 DDOS АТАКА НА ${target}\n━━━━━━━━━━━━━━━━━━━━━━━\n[+] Пакетов: ${packets}\n[+] Нагрузка: ${mbps} MB/s\n⚠️ [ДЕМО РЕЖИМ]`;
+    }
+    else if(cmd === "exploit") {
+        let exploits = ["CVE-2024-1234: Уязвимость в SSH", "CVE-2024-5678: DoS в ядре", "CVE-2023-9876: Переполнение буфера"];
+        output = `🔨 ПОИСК ЭКСПЛОЙТОВ\n[+] ${exploits[Math.floor(Math.random()*exploits.length)]}\n${Math.random() > 0.5 ? '[!] Эксплойт доступен' : '[!] Патч выпущен'}`;
+    }
+    else if(cmd.startsWith("traceroute ")) {
+        let target = cmd.substring(11);
+        let hops = [];
+        for(let i = 1; i <= 8; i++) hops.push(`${i}   ${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}   ${Math.floor(Math.random()*100+5)}ms`);
+        output = `📍 TRACEROUTE до ${target}\n${hops.join('\n')}`;
+    }
+    else if(cmd.startsWith("whois ")) {
+        let target = cmd.substring(6);
+        let countries = ["RU", "US", "DE", "CN", "GB", "AZ"];
+        output = `📋 WHOIS ${target}\nСтрана: ${countries[Math.floor(Math.random()*countries.length)]}\nПровайдер: KPK Networks\nСтатус: Активен`;
+    }
+    else if(cmd === "hacktools") {
+        output = `🛠️ HACK TOOLS\n• Nmap - сканер портов\n• Hydra - брутфорс\n• Metasploit - эксплойты\n• Wireshark - анализ трафика`;
+    }
+    else if(cmd === "keylogger") {
+        output = `⌨️ KEYLOGGER [ДЕМО]\n[!] Собрано данных: ${Math.floor(Math.random()*50)} KB\n⚠️ Демонстрационный режим`;
+    }
+    else if(cmd === "sniffer") {
+        output = `📡 АНАЛИЗ ТРАФИКА\n[+] Пакетов: ${Math.floor(Math.random()*1000)}\n[+] Протоколы: TCP(45%), UDP(30%)`;
+    }
+    else if(cmd === "backdoor") {
+        output = `🚪 BACKDOOR [ДЕМО]\n[+] Порт: ${Math.floor(Math.random()*60000+1024)}\n⚠️ Демонстрационный режим`;
+    }
+    else if(cmd === "hack") {
+        output = `🔓 HACK MODULE\n━━━━━━━━━━━━━━━━━━━━━━━\n📌 Команды:\n  ddos <IP> - DDoS атака\n  exploit - поиск уязвимостей\n  traceroute - трассировка\n  whois <IP> - информация об IP\n  hacktools - список инструментов\n  keylogger - клавиатурный шпион\n  sniffer - анализ трафика\n  backdoor - установка бэкдора`;
+    }
+    // ОБЫЧНЫЕ КОМАНДЫ
+    else if(cmd === "help") {
+        output = `КОМАНДЫ KPK V2.0
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔥 ХАК-КОМАНДЫ:
+  ddos <IP>     - DDoS атака | exploit - Поиск уязвимостей
+  traceroute    - Трассировка | whois <IP> - Информация
+  hacktools     - Список инструментов | keylogger - Шпион
+  sniffer       - Анализ трафика | backdoor - Бэкдор
+  hack          - Справка по хаку
+
+📁 ФАЙЛЫ: files, ls, cd, mkdir, pwd, find, edit
+🎮 ИГРЫ: snake, tetris
+🔧 СИСТЕМА: calc, genpass, weather, myip, system, battery
+🌐 СЕТЬ: iplist, scanip, ports, net on/off, ping
+💻 ДРУГИЕ: paint, player, alarm, browser, editor, notes, clear, reboot, history`;
+    }
+    else if(cmd === "system") { output = `🖥️ KPK V2.0\n🔋 Батарея: ${Math.floor(batteryLevel)}%\n🌐 Сеть: ${net?"ВКЛ":"ВЫКЛ"}`; }
+    else if(cmd === "battery") { output = `🔋 Заряд: ${Math.floor(batteryLevel)}%`; }
     else if(cmd === "clear") { term.innerHTML = ""; input.value = ""; return; }
     else if(cmd === "reboot") { output = "Перезагрузка..."; setTimeout(() => reboot(), 1000); }
     else if(cmd === "files") { openApp('files'); output = "📁 Файлы открыты"; }
@@ -742,12 +829,25 @@ function runCmd() {
     else if(cmd === "alarm") { openApp('alarm'); output = "⏰ Часы открыты"; }
     else if(cmd === "snake") { openApp('games'); setTimeout(() => startSnakeGame(), 100); output = "🐍 Змейка запущена!"; }
     else if(cmd === "tetris") { openApp('games'); setTimeout(() => startTetrisGame(), 100); output = "🧩 Тетрис запущен!"; }
-    else if(cmd === "genpass") { let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%", pass=""; for(let i=0;i<12;i++) pass+=chars[Math.floor(Math.random()*chars.length)]; output = `🔐 Пароль: ${pass}`; }
-    else if(cmd === "weather") { output = `🌤️ Погода: ${Math.floor(Math.random()*30-10)}°C, ветер ${Math.floor(Math.random()*15)} м/с`; }
-    else if(cmd === "iplist") { let ips=[]; for(let i=0;i<10;i++) ips.push(`${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`); output = `🌍 IP:\n${ips.join('\n')}`; }
+    else if(cmd === "genpass") { let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*", pass=""; for(let i=0;i<12;i++) pass+=chars[Math.floor(Math.random()*chars.length)]; output = `🔐 Пароль: ${pass}`; }
+    else if(cmd === "weather") { let temp = Math.floor(Math.random()*30 - 10); output = `🌤️ Погода: ${temp}°C, ветер ${Math.floor(Math.random()*15)} м/с`; }
+    else if(cmd === "myip") { let ip = `${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`; output = `🌐 Ваш IP: ${ip}`; }
+    else if(cmd === "iplist") { let ips=[]; for(let i=0;i<30;i++) ips.push(`${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`); output = `🌍 IP АДРЕСА (30 шт):\n${ips.join('\n')}`; }
     else if(cmd === "scanip") { output = `🔍 Сканирование: порты 22,80,443 открыты`; }
-    else if(cmd === "ports") { output = "🔌 Порты: 22🔓 80🔓 443🔓"; }
-    else output = `❌ Неизвестно: ${raw}. Введите help`;
+    else if(cmd === "ports") { output = "🔌 Порты: 22🔓 80🔓 443🔓 8080🔓 3306🔒"; }
+    else if(cmd === "net on") { if(!net) toggleNet(); output = "🌐 Сеть включена"; }
+    else if(cmd === "net off") { if(net) toggleNet(); output = "🌐 Сеть отключена"; }
+    else if(cmd === "history") { output = cmdHistory.length ? `📜 История (последние 10):\n${cmdHistory.slice(-10).join('\n')}` : "История пуста"; }
+    else if(cmd === "ls") { let cur = fileSystem[currentPath]; if(cur && cur.children) output = `📁 ${cur.children.join(', ') || '(пусто)'}`; else output = "❌ Ошибка"; }
+    else if(cmd.startsWith("cd ")) {
+        let dir = cmd.substring(3);
+        if(dir === "/") { currentPath = "/"; refreshFileList(); output = "📁 Корень"; }
+        else if(dir === "..") { navigateTo(".."); output = "📁 Наверх"; }
+        else { let newPath = currentPath === "/" ? "/" + dir : currentPath + "/" + dir; if(fileSystem[newPath] && fileSystem[newPath].type === "folder") { currentPath = newPath; refreshFileList(); output = `📁 Переход в ${dir}`; } else output = `❌ Папка "${dir}" не найдена`; }
+    }
+    else if(cmd.startsWith("mkdir ")) { let name = cmd.substring(6); if(name) { createFolder(name); refreshFileList(); output = `📁 Папка "${name}" создана`; } else output = "❌ Укажите имя"; }
+    else if(cmd === "pwd") { output = `📂 ${currentPath}`; }
+    else { output = `❌ Неизвестно: ${raw}\nВведите 'help'`; }
     
     if(output) term.innerHTML += `<div class="terminal-line">${output.replace(/\n/g, '<br>')}</div>`;
     term.scrollTop = term.scrollHeight;
@@ -755,50 +855,106 @@ function runCmd() {
 }
 function escapeHtml(str) { return str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;'); }
 document.getElementById("cmd")?.addEventListener("keypress", (e) => { if(e.key === "Enter") runCmd(); });
+document.getElementById("cmd")?.addEventListener("keydown", (e) => {
+    if(e.key === "ArrowUp") { if(historyIndex > 0) { historyIndex--; document.getElementById("cmd").value = cmdHistory[historyIndex]; } }
+    else if(e.key === "ArrowDown") { if(historyIndex < cmdHistory.length-1) { historyIndex++; document.getElementById("cmd").value = cmdHistory[historyIndex]; } else { historyIndex = cmdHistory.length; document.getElementById("cmd").value = ""; } }
+});
 
+// ========== ТЕМЫ ==========
 function setTheme(theme) { document.body.className = `theme-${theme}`; localStorage.setItem('kpk_theme', theme); if(tetrisLoop) drawTetris(); }
-function clearStorage() { if(confirm("Очистить все данные? Файлы, заметки, плейлисты, будильники будут удалены!")) { localStorage.clear(); location.reload(); } }
+function clearStorage() { if(confirm("Очистить все данные?")) { localStorage.clear(); location.reload(); } }
 let savedTheme = localStorage.getItem('kpk_theme'); if(savedTheme) setTheme(savedTheme);
-function saveNotes() { localStorage.setItem('kpk_notes', document.getElementById("notesArea").value); alert("💾 Заметки сохранены!"); }
+function saveNotes() { localStorage.setItem('kpk_notes', document.getElementById("notesArea").value); alert("💾 Сохранено!"); }
 function loadNotes() { let saved = localStorage.getItem('kpk_notes'); if(saved) document.getElementById("notesArea").value = saved; }
 
+// ========== DRAG & DROP (ИСПРАВЛЕННЫЙ) ==========
 function makeDraggable(win) {
     let header = win.querySelector("header");
     if(!header) return;
-    let closeBtn = header.querySelector(".close-btn"), minimizeBtn = header.querySelector(".minimize-btn");
-    let isDragging = false, startX, startY, left, top;
-    function getCoords(e) { return { x: e.clientX ?? (e.touches?.[0]?.clientX ?? 0), y: e.clientY ?? (e.touches?.[0]?.clientY ?? 0) }; }
+    
+    let closeBtn = header.querySelector(".close-btn");
+    let minimizeBtn = header.querySelector(".minimize-btn");
+    
+    let isDragging = false;
+    let startX, startY, startLeft, startTop;
+    
+    function getCoords(e) {
+        if (e.clientX !== undefined) return { x: e.clientX, y: e.clientY };
+        if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        return { x: 0, y: 0 };
+    }
+    
     function onStart(e) {
-        if((closeBtn && (e.target === closeBtn || closeBtn.contains(e.target))) || (minimizeBtn && (e.target === minimizeBtn || minimizeBtn.contains(e.target)))) return;
+        if (closeBtn && (e.target === closeBtn || closeBtn.contains(e.target))) return;
+        if (minimizeBtn && (e.target === minimizeBtn || minimizeBtn.contains(e.target))) return;
+        
         e.preventDefault();
+        e.stopPropagation();
+        
         isDragging = true;
+        
         let rect = win.getBoundingClientRect();
         let coords = getCoords(e);
+        
         startX = coords.x - rect.left;
         startY = coords.y - rect.top;
-        left = rect.left; top = rect.top;
-        win.style.left = left + "px"; win.style.top = top + "px";
+        startLeft = rect.left;
+        startTop = rect.top;
+        
+        win.style.left = startLeft + "px";
+        win.style.top = startTop + "px";
+        win.style.right = "auto";
+        win.style.bottom = "auto";
+        
+        win.classList.add("dragging");
     }
+    
     function onMove(e) {
-        if(!isDragging) return;
+        if (!isDragging) return;
+        
         e.preventDefault();
+        
         let coords = getCoords(e);
         let newLeft = coords.x - startX;
         let newTop = coords.y - startY;
-        newLeft = Math.min(Math.max(0, newLeft), window.innerWidth - win.offsetWidth);
-        newTop = Math.min(Math.max(20, newTop), window.innerHeight - win.offsetHeight);
-        win.style.left = newLeft + "px"; win.style.top = newTop + "px";
+        
+        let maxX = window.innerWidth - win.offsetWidth;
+        let maxY = window.innerHeight - win.offsetHeight;
+        
+        newLeft = Math.max(0, Math.min(newLeft, maxX));
+        newTop = Math.max(40, Math.min(newTop, maxY));
+        
+        win.style.left = newLeft + "px";
+        win.style.top = newTop + "px";
     }
-    function onEnd() { isDragging = false; }
+    
+    function onEnd() {
+        isDragging = false;
+        win.classList.remove("dragging");
+    }
+    
     header.addEventListener("mousedown", onStart);
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onEnd);
-    header.addEventListener("touchstart", onStart, {passive: false});
-    window.addEventListener("touchmove", onMove, {passive: false});
+    
+    header.addEventListener("touchstart", onStart, { passive: false });
+    window.addEventListener("touchmove", onMove, { passive: false });
     window.addEventListener("touchend", onEnd);
 }
+
+// Применяем ко всем окнам
 document.querySelectorAll(".window").forEach(makeDraggable);
 
+// При изменении размера окна браузера — подтягиваем все окна
+window.addEventListener("resize", () => {
+    document.querySelectorAll(".window").forEach(win => {
+        if (win.style.display === "flex") {
+            fitWindowToScreen(win);
+        }
+    });
+});
+
+// ========== ПЕРЕЗАГРУЗКА ==========
 function reboot() {
     document.getElementById("shutdown").style.display = "none";
     let boot = document.getElementById("bootScreen"), percent = 0;
@@ -813,6 +969,7 @@ function reboot() {
 }
 window.reboot = reboot;
 
+// ========== ЗАПУСК ==========
 window.addEventListener("load", () => {
     if(batteryLevel <= 0) document.getElementById("shutdown").style.display = "flex";
     refreshFileList();
@@ -820,10 +977,14 @@ window.addEventListener("load", () => {
     initPaint();
     let term = document.getElementById("terminal");
     if(term) term.innerHTML = `<div class="terminal-line">[SYSTEM] KPK V2.0 загружена</div>
-<div class="terminal-line">[SYSTEM] 🎨 Paint | 🎵 Плеер (добавляй свои песни!) | ⏰ Часы с будильником</div>
-<div class="terminal-line">[SYSTEM] 🇦🇿 Добавлен Азербайджан (Баку) в мировые часы</div>
-<div class="terminal-line">[SYSTEM] Введите help для справки</div>`;
-    document.querySelectorAll(".window").forEach((win, idx) => { win.style.left = (20 + idx * 25) + "px"; win.style.top = (70 + idx * 15) + "px"; });
+<div class="terminal-line">[SYSTEM] 🔥 ХАК-КОМАНДЫ: ddos, exploit, traceroute, whois, hacktools</div>
+<div class="terminal-line">[SYSTEM] 🎮 ИГРЫ: snake, tetris</div>
+<div class="terminal-line">[SYSTEM] Введите 'help' для полного списка, 'hack' для хак-команд</div>`;
+    document.querySelectorAll(".window").forEach((win, idx) => { 
+        win.style.left = (20 + idx * 25) + "px"; 
+        win.style.top = (70 + idx * 15) + "px";
+        fitWindowToScreen(win);
+    });
     refreshPlayer();
 });
 document.addEventListener("keydown", (e) => { if(e.key === "F5") { e.preventDefault(); if(batteryLevel <= 0) location.reload(); } });
@@ -855,9 +1016,11 @@ window.stopTrack = stopTrack;
 window.createPlayerFolder = createPlayerFolder;
 window.addTrackToCurrentFolder = addTrackToCurrentFolder;
 window.deleteTrack = deleteTrack;
+window.selectMP3File = selectMP3File;
 window.addAlarm = addAlarm;
 window.removeAlarm = removeAlarm;
 window.stopAlarm = stopAlarm;
+window.fitWindowToScreen = fitWindowToScreen;
 </script>
 </body>
 </html>
