@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>KPK V2.0 | Paint + Плеер + Часы</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            margin: 0; 
+            font-family: 'Courier New', monospace; 
+            background: #000; 
+            color: #0f0; 
+            overflow: hidden; 
+            height: 100vh; 
+            transition: all 0.3s;
+        }
+        
+        @keyframes neonGlow {
+            0%, 100% { text-shadow: 0 0 3px currentColor, 0 0 5px currentColor, 0 0 10px currentColor; }
+            50% { text-shadow: 0 0 1px currentColor, 0 0 3px currentColor, 0 0 6px currentColor; }
+        }
+        
+        @keyframes alarmBlink {
+            0%, 100% { background: rgba(255,0,0,0); color: currentColor; }
+            50% { background: rgba(255,0,0,0.5); color: #fff; text-shadow: 0 0 10px red; }
+        }
+        
+        .alarm-active { animation: alarmBlink 0.5s infinite !important; }
+        
+        #topbar, .window header, .app, button, .terminal-line, #lockTime, #lockDate {
+            animation: neonGlow 1.5s ease-in-out infinite;
+        }
+        
+        .window {
+            border: 3px solid;
+            box-shadow: 0 0 20px rgba(0,255,0,0.5), inset 0 0 10px rgba(0,255,0,0.2);
+            background: rgba(0,0,0,0.9);
+            transition: all 0.3s;
+        }
+        
+        .window header {
+            background: rgba(17,17,17,0.9);
+            border-bottom: 1px solid;
+            padding: 10px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: grab;
+        }
+        
+        .window-buttons { display: flex; gap: 8px; }
+        .minimize-btn, .close-btn {
+            background: #300;
+            border: 1px solid #f00;
+            color: #f88;
+            padding: 2px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .minimize-btn { background: #330; border-color: #ff0; color: #ff8; }
+        
+        .content { flex: 1; padding: 12px; overflow-y: auto; }
+        
+        button, input, textarea {
+            border: 1px solid;
+            font-family: monospace;
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+            background: #000;
+        }
+        
+        #topbar {
+            background: rgba(10,10,10,0.9);
+            backdrop-filter: blur(4px);
+            padding: 8px 14px;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 2px solid;
+            font-weight: bold;
+            position: relative;
+            z-index: 20;
+        }
+        
+        #apps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            padding: 16px;
+            overflow-y: auto;
+            height: calc(100% - 48px);
+            position: relative;
+            z-index: 5;
+        }
+        
+        .app {
+            width: 100px;
+            height: 100px;
+            border: 2px solid;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: #000;
+            border-radius: 12px;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .window {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            width: 90%;
+            max-width: 500px;
+            height: 560px;
+            background: #000;
+            display: none;
+            flex-direction: column;
+            z-index: 100;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        
+        .battery-widget { 
+            background: rgba(10,10,10,0.8);
+            backdrop-filter: blur(4px);
+            border: 1px solid;
+            box-shadow: 0 0 10px currentColor;
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 500;
+            cursor: pointer;
+        }
+        
+        /* PAINT СТИЛИ */
+        .paint-tools { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
+        #paintCanvas { border: 1px solid; cursor: crosshair; background: #fff; display: block; margin: 0 auto; }
+        .color-picker { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 1px solid #fff; }
+        
+        /* ПЛЕЕР СТИЛИ */
+        .player-folder { background: #0a0a0a; padding: 8px; margin: 5px 0; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; }
+        .player-folder:hover { background: #1a3a1a; }
+        .player-track { padding: 5px 10px; margin: 3px 0; cursor: pointer; border-radius: 4px; display: flex; justify-content: space-between; }
+        .player-track:hover { background: #1a3a1a; }
+        .player-controls { display: flex; gap: 10px; justify-content: center; margin: 15px 0; }
+        .add-track { display: flex; gap: 8px; margin-top: 10px; }
+        .add-track input { flex: 1; }
+        
+        /* ЧАСЫ СТИЛИ */
+        .world-clock { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; max-height: 200px; overflow-y: auto; }
+        .city-clock { background: #0a0a0a; padding: 10px; border-radius: 10px; text-align: center; flex: 1; min-width: 110px; }
+        .city-time { font-size: 24px; font-weight: bold; }
+        .alarm-input { display: flex; gap: 10px; margin: 15px 0; }
+        .alarm-list { margin-top: 10px; }
+        .alarm-item { display: flex; justify-content: space-between; padding: 8px; background: #0a0a0a; margin: 5px 0; border-radius: 6px; }
+        
+        .theme-selector { display: flex; gap: 5px; margin-top: 10px; }
+        .theme-btn { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid #fff; }
+        .theme-green-bg { background: #0f0; }
+        .theme-blue-bg { background: #0af; }
+        .theme-red-bg { background: #f44; }
+        .theme-purple-bg { background: #c8f; }
+        
+        #lockScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        #lockTime { font-size: 56px; }
+        #lockDate { font-size: 20px; margin-bottom: 30px; }
+        
+        /* ТЕМЫ */
+        body.theme-green { color: #0f0; }
+        body.theme-green .window { border-color: #0f0; }
+        body.theme-green button, body.theme-green .app { border-color: #0f0; color: #0f0; }
+        
+        body.theme-blue { color: #0af; }
+        body.theme-blue .window { border-color: #0af; }
+        body.theme-blue button, body.theme-blue .app { border-color: #0af; color: #0af; }
+        
+        body.theme-red { color: #f44; }
+        body.theme-red .window { border-color: #f44; }
+        body.theme-red button, body.theme-red .app { border-color: #f44; color: #f44; }
+        
+        body.theme-purple { color: #c8f; }
+        body.theme-purple .window { border-color: #c8f; }
+        body.theme-purple button, body.theme-purple .app { border-color: #c8f; color: #c8f; }
+        
+        .folder-item, .file-item {
+            padding: 8px;
+            margin: 4px 0;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            background: #0a0a0a;
+        }
+        .folder-item:hover, .file-item:hover { background: #1a3a1a; }
+        .breadcrumb { padding: 8px; background: #0a0a0a; border-radius: 6px; margin-bottom: 10px; font-size: 12px; }
+    </style>
+</head>
+<body class="theme-green">
+
+<div id="shutdown"><div>🔋 КРИТИЧЕСКИЙ РАЗРЯД</div><div style="font-size:58px; margin:20px;">0%</div><button onclick="reboot()">🔄 ПЕРЕЗАГРУЗКА</button></div>
+<div id="lockScreen"><div id="lockTime"></div><div id="lockDate"></div><button onclick="unlock()">🔓 РАЗБЛОКИРОВАТЬ</button></div>
+
+<div id="topbar"><div>⚡ KPK V2.0 | Paint + Плеер + Часы</div><div><span id="clock"></span> <span id="battery">🔋 100%</span></div></div>
+
+<div class="battery-widget" id="batteryWidget" onclick="openApp('battery')">🔋 100%</div>
+
+<div id="apps">
+    <div class="app" onclick="openApp('paint')">🎨 PAINT</div>
+    <div class="app" onclick="openApp('player')">🎵 ПЛЕЕР</div>
+    <div class="app" onclick="openApp('alarm')">⏰ ЧАСЫ</div>
+    <div class="app" onclick="openApp('files')">📁 ФАЙЛЫ</div>
+    <div class="app" onclick="openApp('browser')">🌐 БРАУЗЕР</div>
+    <div class="app" onclick="openApp('editor')">✏️ РЕДАКТОР</div>
+    <div class="app" onclick="openApp('games')">🎮 АРКАДЫ</div>
+    <div class="app" onclick="openApp('notes')">📝 ЗАМЕТКИ</div>
+    <div class="app" onclick="openApp('calc')">🧮 КАЛЬКУЛЯТОР</div>
+    <div class="app" onclick="openApp('net')">🌍 СЕТЬ</div>
+    <div class="app" onclick="openApp('hack')">💻 ТЕРМИНАЛ</div>
+    <div class="app" onclick="openApp('battery')">🔋 БАТАРЕЯ</div>
+    <div class="app" onclick="openApp('settings')">⚙️ НАСТРОЙКИ</div>
+</div>
+
+<!-- PAINT -->
+<div id="paint" class="window"><header>🎨 PAINT <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('paint')">_</button><button class="close-btn" onclick="closeApp('paint')">✖</button></div></header>
+<div class="content">
+    <div class="paint-tools">
+        <button onclick="setPaintColor('#0f0')">🟢 Зел</button>
+        <button onclick="setPaintColor('#f00')">🔴 Крас</button>
+        <button onclick="setPaintColor('#00f')">🔵 Син</button>
+        <button onclick="setPaintColor('#ff0')">🟡 Жёлт</button>
+        <button onclick="setPaintColor('#fff')">⚪ Бел</button>
+        <button onclick="setPaintColor('#000')">⚫ Чёрн</button>
+        <div class="color-picker" style="background:#0f0" onclick="setPaintColor('#0f0')"></div>
+        <div class="color-picker" style="background:#f00" onclick="setPaintColor('#f00')"></div>
+        <div class="color-picker" style="background:#00f" onclick="setPaintColor('#00f')"></div>
+        <div class="color-picker" style="background:#ff0" onclick="setPaintColor('#ff0')"></div>
+        <div class="color-picker" style="background:#fff" onclick="setPaintColor('#fff')"></div>
+        <div class="color-picker" style="background:#000; border-color:#fff" onclick="setPaintColor('#000')"></div>
+        <button onclick="clearPaint()">🗑️ Оч</button>
+        <button onclick="savePaint()">💾 Сохр</button>
+    </div>
+    <canvas id="paintCanvas" width="440" height="400" style="border:1px solid currentColor; width:100%; height:auto; background:#fff;"></canvas>
+</div></div>
+
+<!-- ПЛЕЕР С ДОБАВЛЕНИЕМ ПЕСЕН -->
+<div id="player" class="window"><header>🎵 МУЗЫКАЛЬНЫЙ ПЛЕЕР <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('player')">_</button><button class="close-btn" onclick="closeApp('player')">✖</button></div></header>
+<div class="content">
+    <div id="playerFolders"></div>
+    <div id="playerTracks"></div>
+    <div class="add-track">
+        <input type="text" id="newTrackName" placeholder="Название песни">
+        <input type="text" id="newTrackUrl" placeholder="Ссылка на аудио (или текст)">
+        <button onclick="addTrackToCurrentFolder()">➕ Добавить</button>
+    </div>
+    <div class="player-controls">
+        <button onclick="playTrack()">▶ PLAY</button>
+        <button onclick="pauseTrack()">⏸ PAUSE</button>
+        <button onclick="stopTrack()">⏹ STOP</button>
+    </div>
+    <div id="nowPlaying" style="text-align:center; margin-top:10px;">🎵 Нет трека</div>
+    <button onclick="createPlayerFolder()" style="width:100%; margin-top:10px;">📁 Новая папка</button>
+</div></div>
+
+<!-- ЧАСЫ С БУДИЛЬНИКОМ И АЗЕРБАЙДЖАНОМ -->
+<div id="alarm" class="window"><header>⏰ ЧАСЫ И БУДИЛЬНИК <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('alarm')">_</button><button class="close-btn" onclick="closeApp('alarm')">✖</button></div></header>
+<div class="content">
+    <div id="localTime" style="font-size:48px; text-align:center; margin-bottom:10px;">--:--:--</div>
+    <div id="localDate" style="text-align:center; margin-bottom:15px;"></div>
+    <div id="locationInfo" style="text-align:center; font-size:12px; margin-bottom:20px;">🌍 Определение местоположения...</div>
+    
+    <h3>🌍 МИРОВЫЕ ЧАСЫ</h3>
+    <div class="world-clock" id="worldClock"></div>
+    
+    <h3>⏰ БУДИЛЬНИК</h3>
+    <div class="alarm-input">
+        <input type="time" id="alarmTime">
+        <button onclick="addAlarm()">🔔 Установить</button>
+    </div>
+    <div id="alarmList" class="alarm-list"></div>
+    <div id="alarmMessage" style="display:none; position:fixed; bottom:50%; left:50%; transform:translate(-50%,-50%); background:#000; border:3px solid red; padding:20px; z-index:10000; text-align:center; border-radius:10px;">
+        ⏰ БУДИЛЬНИК! ⏰<br><br>
+        <button onclick="stopAlarm()">OK</button>
+    </div>
+</div></div>
+
+<!-- ОСТАЛЬНЫЕ ОКНА -->
+<div id="files" class="window"><header>📁 ФАЙЛЫ <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('files')">_</button><button class="close-btn" onclick="closeApp('files')">✖</button></div></header>
+<div class="content"><div class="breadcrumb" id="currentPathDisplay">📂 /</div><div id="fileList"></div><div style="display:flex; gap:8px; margin-top:12px;"><button onclick="createFolder()">📁 Папка</button><button onclick="createFile()">📄 Файл</button></div></div></div>
+
+<div id="browser" class="window"><header>🌐 БРАУЗЕР <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('browser')">_</button><button class="close-btn" onclick="closeApp('browser')">✖</button></div></header>
+<div class="content"><div style="display:flex; gap:8px;"><input id="browserUrl" placeholder="kpk://home" value="kpk://home"><button onclick="browserGo()">GO</button></div><div id="browserContent" style="background:#001000; border:1px solid; padding:10px; height:380px; overflow-y:auto; margin-top:10px;"></div></div></div>
+
+<div id="editor" class="window"><header>✏️ РЕДАКТОР <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('editor')">_</button><button class="close-btn" onclick="closeApp('editor')">✖</button></div></header>
+<div class="content"><div style="display:flex; gap:8px; margin-bottom:10px;"><input id="editorFilename" placeholder="имя_файла.txt"><button onclick="editorSave()">💾</button><button onclick="editorLoad()">📂</button></div><textarea id="editorArea" rows="18" style="width:100%; background:#000; border:1px solid;"></textarea></div></div>
+
+<div id="games" class="window"><header>🎮 АРКАДЫ <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('games')">_</button><button class="close-btn" onclick="closeApp('games')">✖</button></div></header>
+<div class="content"><div style="display:flex; gap:10px;"><button onclick="startSnakeGame()" style="flex:1;">🐍 ЗМЕЙКА</button><button onclick="startTetrisGame()" style="flex:1;">🧩 ТЕТРИС</button></div><canvas id="snakeCanvas" width="380" height="380" style="border:2px solid; width:100%; background:#000; display:none;"></canvas><canvas id="tetrisCanvas" width="300" height="400" style="border:2px solid; width:100%; background:#000; display:none;"></canvas><div id="gameScore" style="text-align:center;">SCORE: 0</div></div></div>
+
+<div id="battery" class="window"><header>🔋 БАТАРЕЯ <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('battery')">_</button><button class="close-btn" onclick="closeApp('battery')">✖</button></div></header>
+<div class="content"><div id="batLevelBig" style="font-size:52px; text-align:center;"></div><button onclick="charge()">🔌 +20%</button><button onclick="discharge()">📉 -10%</button><div>Авторазряд: <span id="autoDischargeStatus">OFF</span></div><button onclick="toggleAuto()">🔄 АВТОРАЗРЯД</button></div></div>
+
+<div id="notes" class="window"><header>📓 ЗАМЕТКИ <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('notes')">_</button><button class="close-btn" onclick="closeApp('notes')">✖</button></div></header>
+<div class="content"><textarea id="notesArea" style="width:100%; height:400px; background:#000; border:1px solid;"></textarea><button onclick="saveNotes()">💾 СОХРАНИТЬ</button></div></div>
+
+<div id="calc" class="window"><header>🧮 КАЛЬКУЛЯТОР <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('calc')">_</button><button class="close-btn" onclick="closeApp('calc')">✖</button></div></header>
+<div class="content"><input id="calcInput" placeholder="2+2*3"><div style="display:flex; flex-wrap:wrap; gap:5px;"><button onclick="document.getElementById('calcInput').value+='1'">1</button><button onclick="document.getElementById('calcInput').value+='2'">2</button><button onclick="document.getElementById('calcInput').value+='3'">3</button><button onclick="document.getElementById('calcInput').value+='+'">+</button><button onclick="document.getElementById('calcInput').value+='4'">4</button><button onclick="document.getElementById('calcInput').value+='5'">5</button><button onclick="document.getElementById('calcInput').value+='6'">6</button><button onclick="document.getElementById('calcInput').value+='-'">-</button><button onclick="document.getElementById('calcInput').value+='7'">7</button><button onclick="document.getElementById('calcInput').value+='8'">8</button><button onclick="document.getElementById('calcInput').value+='9'">9</button><button onclick="document.getElementById('calcInput').value+='*'">*</button><button onclick="document.getElementById('calcInput').value+='0'">0</button><button onclick="document.getElementById('calcInput').value+='/'">/</button><button onclick="calc()">=</button><button onclick="document.getElementById('calcInput').value=''">C</button></div><div id="calcResult" style="font-size:20px;"></div></div></div>
+
+<div id="net" class="window"><header>🌍 СЕТЬ <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('net')">_</button><button class="close-btn" onclick="closeApp('net')">✖</button></div></header>
+<div class="content"><div id="wifi">📶 WiFi: OFF</div><div id="mobile">📱 Mobile: OFF</div><button onclick="toggleNet()">🔁 ВКЛ/ВЫКЛ</button><div id="netStatus">⚫ Offline</div><button onclick="simulatePing()">📡 ПИНГ</button><button onclick="showMyIP()">🌐 МОЙ IP</button><div id="myIpDisplay"></div></div></div>
+
+<div id="hack" class="window"><header>💻 ТЕРМИНАЛ <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('hack')">_</button><button class="close-btn" onclick="closeApp('hack')">✖</button></div></header>
+<div class="content" id="terminal" style="height:340px; overflow-y:auto; font-size:12px;"></div><div style="display:flex; gap:6px; padding:8px;"><span>➜</span><input id="cmd" style="flex:1;" placeholder="help | paint | player | alarm"><button onclick="runCmd()">⏎</button></div></div>
+
+<div id="settings" class="window"><header>⚙️ НАСТРОЙКИ <div class="window-buttons"><button class="minimize-btn" onclick="minimizeWindow('settings')">_</button><button class="close-btn" onclick="closeApp('settings')">✖</button></div></header>
+<div class="content"><h3>🎨 ТЕМА</h3><div class="theme-selector"><div class="theme-btn theme-green-bg" onclick="setTheme('green')"></div><div class="theme-btn theme-blue-bg" onclick="setTheme('blue')"></div><div class="theme-btn theme-red-bg" onclick="setTheme('red')"></div><div class="theme-btn theme-purple-bg" onclick="setTheme('purple')"></div></div><hr><button onclick="clearStorage()">🗑️ ОЧИСТИТЬ ДАННЫЕ</button></div></div>
+
+<div id="bootScreen"><div id="bootText">⚡ BOOTING</div><div class="boot-container"><div id="bootBar"></div></div><div id="bootPercent">0%</div></div>
+
+<script>
+// ========== БАТАРЕЯ ==========
+let batteryLevel = 100, autoDischarge = false, dischargeInterval;
+function updateBattery() {
+    let batSpan = document.getElementById("battery");
+    let widget = document.getElementById("batteryWidget");
+    if(batteryLevel <= 0) document.getElementById("shutdown").style.display = "flex";
+    batSpan.innerText = `🔋 ${Math.floor(batteryLevel)}%`;
+    if(widget) widget.innerHTML = `🔋 ${Math.floor(batteryLevel)}%`;
+    let batBig = document.getElementById("batLevelBig");
+    if(batBig) batBig.innerText = `${Math.floor(batteryLevel)}%`;
+    let statusSpan = document.getElementById("autoDischargeStatus");
+    if(statusSpan) statusSpan.innerText = autoDischarge ? "ON" : "OFF";
+}
+function charge() { batteryLevel = Math.min(100, batteryLevel + 20); updateBattery(); }
+function discharge() { batteryLevel = Math.max(0, batteryLevel - 10); updateBattery(); }
+function toggleAuto() {
+    autoDischarge = !autoDischarge;
+    if(autoDischarge) dischargeInterval = setInterval(() => { if(batteryLevel > 0) { batteryLevel--; updateBattery(); } }, 10000);
+    else clearInterval(dischargeInterval);
+    updateBattery();
+}
+setInterval(updateBattery, 1000); updateBattery();
+
+function updateLock() { let d = new Date(); document.getElementById("lockTime").innerText = d.getHours().toString().padStart(2,'0')+":"+d.getMinutes().toString().padStart(2,'0'); document.getElementById("lockDate").innerText = d.toDateString(); }
+setInterval(updateLock, 1000); updateLock();
+function unlock() { if(batteryLevel > 0) document.getElementById("lockScreen").style.display = "none"; }
+function updateClock() { document.getElementById("clock").innerText = new Date().toLocaleTimeString(); }
+setInterval(updateClock, 1000); updateClock();
+
+function openApp(id) { if(batteryLevel > 0) { let win = document.getElementById(id); if(win) { win.style.display = "flex"; win.style.zIndex = 1000 + Date.now() % 1000; } } }
+function closeApp(id) { let win = document.getElementById(id); if(win) win.style.display = "none"; }
+function minimizeWindow(id) { document.getElementById(id).style.display = "none"; }
+function calc() { try { document.getElementById("calcResult").innerText = "= " + eval(document.getElementById("calcInput").value); } catch(e) { document.getElementById("calcResult").innerText = "Ошибка!"; } }
+
+let net = false;
+function toggleNet() { net = !net; document.getElementById("wifi").innerText = net ? "📶 WiFi: ON" : "📶 WiFi: OFF"; document.getElementById("netStatus").innerHTML = net ? "🟢 ONLINE" : "🔴 OFFLINE"; }
+function simulatePing() { if(net) alert("🏓 Пинг: "+(Math.floor(Math.random()*80+20))+"ms"); else alert("Сеть отключена"); }
+function showMyIP() { 
+    let ips = ["192.168.1."+Math.floor(Math.random()*255), "10.0.0."+Math.floor(Math.random()*255)];
+    document.getElementById("myIpDisplay").innerHTML = "🌐 Ваш IP: " + ips[Math.floor(Math.random()*ips.length)];
+}
+
+// ========== PAINT ==========
+let paintCanvas, paintCtx, paintColor = "#0f0";
+function initPaint() {
+    paintCanvas = document.getElementById("paintCanvas");
+    if(!paintCanvas) return;
+    paintCtx = paintCanvas.getContext("2d");
+    paintCtx.fillStyle = "#fff";
+    paintCtx.fillRect(0, 0, paintCanvas.width, paintCanvas.height);
+    let drawing = false;
+    function startDraw(e) { drawing = true; draw(e); }
+    function endDraw() { drawing = false; paintCtx.beginPath(); }
+    function draw(e) {
+        if(!drawing) return;
+        let rect = paintCanvas.getBoundingClientRect();
+        let x = (e.clientX - rect.left) * (paintCanvas.width / rect.width);
+        let y = (e.clientY - rect.top) * (paintCanvas.height / rect.height);
+        paintCtx.strokeStyle = paintColor;
+        paintCtx.lineWidth = 5;
+        paintCtx.lineCap = "round";
+        paintCtx.lineTo(x, y);
+        paintCtx.stroke();
+        paintCtx.beginPath();
+        paintCtx.moveTo(x, y);
+    }
+    paintCanvas.addEventListener("mousedown", startDraw);
+    paintCanvas.addEventListener("mouseup", endDraw);
+    paintCanvas.addEventListener("mousemove", draw);
+    paintCanvas.addEventListener("touchstart", (e) => { e.preventDefault(); startDraw(e.touches[0]); });
+    paintCanvas.addEventListener("touchend", endDraw);
+    paintCanvas.addEventListener("touchmove", (e) => { e.preventDefault(); draw(e.touches[0]); });
+}
+function setPaintColor(color) { paintColor = color; }
+function clearPaint() { paintCtx.fillStyle = "#fff"; paintCtx.fillRect(0, 0, paintCanvas.width, paintCanvas.height); }
+function savePaint() { let link = document.createElement("a"); link.download = "drawing.png"; link.href = paintCanvas.toDataURL(); link.click(); }
+
+// ========== ПЛЕЕР С ДОБАВЛЕНИЕМ ПЕСЕН ==========
+let playerFolders = JSON.parse(localStorage.getItem('playerFolders')) || { "Моя музыка": [{name: "Demo Track 1", url: ""}, {name: "Demo Track 2", url: ""}] };
+let currentFolder = null;
+let currentTrackObj = null;
+let audioContext = null;
+let currentAudio = null;
+
+function refreshPlayer() {
+    let foldersDiv = document.getElementById("playerFolders");
+    let tracksDiv = document.getElementById("playerTracks");
+    if(!foldersDiv) return;
+    foldersDiv.innerHTML = "<strong>📁 ПАПКИ:</strong><br>";
+    for(let folder in playerFolders) {
+        foldersDiv.innerHTML += `<div class="player-folder" onclick="loadPlayerFolder('${folder}')"><span>📁 ${folder}</span><span>(${playerFolders[folder].length} треков)</span></div>`;
+    }
+}
+function loadPlayerFolder(folder) {
+    currentFolder = folder;
+    let tracksDiv = document.getElementById("playerTracks");
+    if(!tracksDiv) return;
+    tracksDiv.innerHTML = `<strong>🎵 ТРЕКИ (${folder}):</strong><br>`;
+    for(let i=0; i<playerFolders[folder].length; i++) {
+        let track = playerFolders[folder][i];
+        tracksDiv.innerHTML += `<div class="player-track" onclick="selectTrack('${folder}', ${i})"><span>🎵 ${track.name}</span><button onclick="deleteTrack('${folder}', ${i})">🗑️</button></div>`;
+    }
+    if(playerFolders[folder].length === 0) tracksDiv.innerHTML += "<div style='color:#888;'>Нет треков. Добавьте через форму выше!</div>";
+}
+function selectTrack(folder, index) {
+    currentTrackObj = playerFolders[folder][index];
+    document.getElementById("nowPlaying").innerHTML = `🎵 Сейчас играет: ${currentTrackObj.name}`;
+    stopTrack();
+    playTrack();
+}
+function playTrack() {
+    if(!currentTrackObj) { alert("Выберите трек!"); return; }
+    if(currentTrackObj.url && currentTrackObj.url.startsWith("http")) {
+        if(currentAudio) { currentAudio.pause(); currentAudio = null; }
+        currentAudio = new Audio(currentTrackObj.url);
+        currentAudio.play();
+    } else {
+        if(!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            let oscillator = audioContext.createOscillator();
+            let gain = audioContext.createGain();
+            oscillator.connect(gain);
+            gain.connect(audioContext.destination);
+            oscillator.type = "sine";
+            oscillator.frequency.value = 440;
+            gain.gain.value = 0.3;
+            oscillator.start();
+            audioContext.oscillator = oscillator;
+            audioContext.gain = gain;
+        } else if(audioContext.state === "suspended") {
+            audioContext.resume();
+        }
+    }
+}
+function pauseTrack() { 
+    if(currentAudio) currentAudio.pause(); 
+    else if(audioContext) audioContext.suspend(); 
+}
+function stopTrack() { 
+    if(currentAudio) { currentAudio.pause(); currentAudio = null; }
+    if(audioContext) { audioContext.close(); audioContext = null; }
+    document.getElementById("nowPlaying").innerHTML = "🎵 Нет трека";
+}
+function addTrackToCurrentFolder() {
+    let name = document.getElementById("newTrackName").value.trim();
+    let url = document.getElementById("newTrackUrl").value.trim();
+    if(!name) { alert("Введите название песни"); return; }
+    if(!currentFolder) { alert("Сначала выберите папку (нажмите на папку в списке)"); return; }
+    playerFolders[currentFolder].push({ name: name, url: url });
+    localStorage.setItem('playerFolders', JSON.stringify(playerFolders));
+    loadPlayerFolder(currentFolder);
+    document.getElementById("newTrackName").value = "";
+    document.getElementById("newTrackUrl").value = "";
+    alert(`✅ Трек "${name}" добавлен в папку "${currentFolder}"!`);
+}
+function deleteTrack(folder, index) {
+    if(confirm(`Удалить трек "${playerFolders[folder][index].name}"?`)) {
+        playerFolders[folder].splice(index, 1);
+        localStorage.setItem('playerFolders', JSON.stringify(playerFolders));
+        loadPlayerFolder(folder);
+    }
+}
+function createPlayerFolder() { 
+    let name = prompt("Название новой папки:"); 
+    if(name && !playerFolders[name]) { 
+        playerFolders[name] = []; 
+        localStorage.setItem('playerFolders', JSON.stringify(playerFolders)); 
+        refreshPlayer(); 
+    } else if(name) alert("Папка уже существует!");
+}
+refreshPlayer();
+
+// ========== ЧАСЫ С БУДИЛЬНИКОМ И АЗЕРБАЙДЖАНОМ ==========
+let alarms = JSON.parse(localStorage.getItem('alarms')) || [];
+let currentAlarm = null;
+
+function updateTime() {
+    let now = new Date();
+    document.getElementById("localTime").innerHTML = now.toLocaleTimeString('ru-RU');
+    document.getElementById("localDate").innerHTML = now.toLocaleDateString('ru-RU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    
+    // Определение местоположения по IP
+    fetch('https://ipapi.co/json/')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById("locationInfo").innerHTML = `📍 ${data.city || 'Неизвестно'}, ${data.country_name || ''} | local: ${now.toLocaleTimeString('ru-RU')}`;
+        })
+        .catch(() => {
+            document.getElementById("locationInfo").innerHTML = `📍 Локальное время: ${now.toLocaleTimeString('ru-RU')}`;
+        });
+    
+    // Мировые часы (добавлен Азербайджан - Баку)
+    let cities = [
+        { name: "🇷🇺 Москва", offset: 3 },
+        { name: "🇦🇿 Баку (Азербайджан)", offset: 4 },
+        { name: "🇺🇸 Нью-Йорк", offset: -4 },
+        { name: "🇬🇧 Лондон", offset: 0 },
+        { name: "🇯🇵 Токио", offset: 9 },
+        { name: "🇦🇪 Дубай", offset: 4 },
+        { name: "🇨🇳 Пекин", offset: 8 },
+        { name: "🇩🇪 Берлин", offset: 1 },
+        { name: "🇹🇷 Стамбул", offset: 3 }
+    ];
+    let worldHtml = "";
+    for(let city of cities) {
+        let cityTime = new Date();
+        cityTime.setHours(cityTime.getUTCHours() + city.offset);
+        worldHtml += `<div class="city-clock"><div>${city.name}</div><div class="city-time">${cityTime.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</div></div>`;
+    }
+    document.getElementById("worldClock").innerHTML = worldHtml;
+    
+    // Проверка будильников
+    let currentTime = now.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
+    for(let alarm of alarms) {
+        if(alarm.time === currentTime && !alarm.triggered) {
+            alarm.triggered = true;
+            document.getElementById("alarmMessage").style.display = "flex";
+            currentAlarm = alarm;
+            break;
+        }
+    }
+    refreshAlarmList();
+}
+function addAlarm() {
+    let time = document.getElementById("alarmTime").value;
+    if(!time) { alert("Выберите время"); return; }
+    alarms.push({ time: time, triggered: false });
+    localStorage.setItem('alarms', JSON.stringify(alarms));
+    refreshAlarmList();
+    alert(`⏰ Будильник установлен на ${time}`);
+}
+function removeAlarm(index) {
+    alarms.splice(index, 1);
+    localStorage.setItem('alarms', JSON.stringify(alarms));
+    refreshAlarmList();
+}
+function refreshAlarmList() {
+    let listDiv = document.getElementById("alarmList");
+    if(!listDiv) return;
+    listDiv.innerHTML = "";
+    if(alarms.length === 0) listDiv.innerHTML = "<div style='color:#888;'>Нет будильников</div>";
+    for(let i=0; i<alarms.length; i++) {
+        listDiv.innerHTML += `<div class="alarm-item"><span>⏰ ${alarms[i].time}</span><button onclick="removeAlarm(${i})">🗑️</button></div>`;
+    }
+}
+function stopAlarm() {
+    document.getElementById("alarmMessage").style.display = "none";
+    if(currentAlarm) currentAlarm.triggered = false;
+}
+setInterval(updateTime, 1000);
+updateTime();
+refreshAlarmList();
+
+// ========== ФАЙЛОВАЯ СИСТЕМА ==========
+let fileSystem = JSON.parse(localStorage.getItem('kpk_files')) || { "/": { type: "folder", children: ["system", "documents", "my_music"], content: {} } };
+if(!fileSystem["/system"]) fileSystem["/system"] = { type: "folder", children: ["config.txt"], content: {} };
+if(!fileSystem["/documents"]) fileSystem["/documents"] = { type: "folder", children: ["readme.txt"], content: {} };
+if(!fileSystem["/my_music"]) fileSystem["/my_music"] = { type: "folder", children: [], content: {} };
+if(!fileSystem["/system/config.txt"]) fileSystem["/system/config.txt"] = { type: "file", content: "system_version=2.0" };
+if(!fileSystem["/documents/readme.txt"]) fileSystem["/documents/readme.txt"] = { type: "file", content: "Добро пожаловать в KPK V2.0!" };
+
+let currentPath = "/";
+function saveFileSystem() { localStorage.setItem('kpk_files', JSON.stringify(fileSystem)); }
+function refreshFileList() {
+    let container = document.getElementById("fileList"), pathDisplay = document.getElementById("currentPathDisplay");
+    if(!container) return;
+    pathDisplay.innerText = "📂 " + currentPath;
+    let current = fileSystem[currentPath];
+    if(!current || current.type !== "folder") { container.innerHTML = "<div>Ошибка</div>"; return; }
+    let items = current.children || [];
+    let html = "";
+    if(currentPath !== "/") html += `<div class="folder-item" onclick="navigateTo('..')">📁 .. (наверх)</div>`;
+    for(let item of items) {
+        let fullPath = currentPath === "/" ? "/" + item : currentPath + "/" + item;
+        let isFolder = fileSystem[fullPath] && fileSystem[fullPath].type === "folder";
+        if(isFolder) html += `<div class="folder-item" onclick="navigateTo('${item}')">📁 ${item}</div>`;
+        else html += `<div class="file-item" onclick="openFile('${fullPath}')">📄 ${item}</div>`;
+    }
+    if(html === "") html = "<div>📭 Пусто</div>";
+    container.innerHTML = html;
+}
+function navigateTo(name) {
+    if(name === "..") { if(currentPath === "/") return; let parts = currentPath.split("/").filter(p => p); parts.pop(); currentPath = "/" + (parts.length ? parts.join("/") : ""); }
+    else { let newPath = currentPath === "/" ? "/" + name : currentPath + "/" + name; if(fileSystem[newPath] && fileSystem[newPath].type === "folder") currentPath = newPath; else { alert("❌ Не папка"); return; } }
+    refreshFileList();
+}
+function openFile(path) { let file = fileSystem[path]; if(file && file.type === "file") alert(`📄 ${path.split("/").pop()}\n━━━━━━━━━━━━━━━\n${file.content}`); else alert("❌ Файл не найден"); }
+function createFolder() { let name = prompt("📁 Имя папки:"); if(!name || name.includes("/")) { alert("❌ Недопустимое имя"); return; } let newPath = currentPath === "/" ? "/" + name : currentPath + "/" + name; if(fileSystem[newPath]) { alert("❌ Уже существует"); return; } fileSystem[newPath] = { type: "folder", children: [], content: {} }; fileSystem[currentPath].children.push(name); saveFileSystem(); refreshFileList(); }
+function createFile() { let name = prompt("📄 Имя файла:"); if(!name || name.includes("/")) { alert("❌ Недопустимое имя"); return; } let newPath = currentPath === "/" ? "/" + name : currentPath + "/" + name; if(fileSystem[newPath]) { alert("❌ Уже существует"); return; } let content = prompt("📝 Содержимое:", ""); fileSystem[newPath] = { type: "file", content: content || "" }; fileSystem[currentPath].children.push(name); saveFileSystem(); refreshFileList(); }
+
+function editorSave() { let filename = document.getElementById("editorFilename").value.trim(); let content = document.getElementById("editorArea").value; if(!filename) { alert("Введите имя файла"); return; } let path = currentPath === "/" ? "/" + filename : currentPath + "/" + filename; fileSystem[path] = { type: "file", content: content }; if(!fileSystem[currentPath].children.includes(filename)) fileSystem[currentPath].children.push(filename); saveFileSystem(); refreshFileList(); alert("✅ Сохранено!"); }
+function editorLoad() { let filename = document.getElementById("editorFilename").value.trim(); if(!filename) { alert("Введите имя файла"); return; } let path = currentPath === "/" ? "/" + filename : currentPath + "/" + filename; let file = fileSystem[path]; if(file && file.type === "file") document.getElementById("editorArea").value = file.content; else alert("❌ Файл не найден"); }
+
+// ========== ИГРЫ ==========
+let snakeCanvas, snakeCtx, snakeGameLoop, snakeScore = 0, snakeGameActive = false;
+let snakeArr = [{x:10, y:10}], snakeDir = {x:1, y:0}, snakeFood = {x:15, y:10};
+function startSnakeGame() {
+    document.getElementById("snakeCanvas").style.display = "block";
+    document.getElementById("tetrisCanvas").style.display = "none";
+    if(snakeGameLoop) clearInterval(snakeGameLoop);
+    snakeArr = [{x:10, y:10}]; snakeDir = {x:1, y:0}; snakeScore = 0;
+    snakeGameActive = true;
+    snakeFood = {x: Math.floor(Math.random()*19), y: Math.floor(Math.random()*19)};
+    snakeCanvas = document.getElementById("snakeCanvas"); snakeCtx = snakeCanvas.getContext("2d");
+    snakeGameLoop = setInterval(updateSnake, 150);
+    drawSnake();
+}
+function updateSnake() {
+    if(!snakeGameActive) return;
+    let head = {x: snakeArr[0].x + snakeDir.x, y: snakeArr[0].y + snakeDir.y};
+    if(head.x < 0 || head.x >= 19 || head.y < 0 || head.y >= 19 || snakeArr.some(seg => seg.x === head.x && seg.y === head.y)) { snakeGameActive = false; clearInterval(snakeGameLoop); alert("GAME OVER! Счёт: " + snakeScore); return; }
+    snakeArr.unshift(head);
+    if(head.x === snakeFood.x && head.y === snakeFood.y) { snakeScore++; document.getElementById("gameScore").innerHTML = "SCORE: "+snakeScore; snakeFood = {x: Math.floor(Math.random()*19), y: Math.floor(Math.random()*19)}; } else { snakeArr.pop(); }
+    drawSnake();
+}
+function drawSnake() {
+    snakeCtx.fillStyle = "black"; snakeCtx.fillRect(0,0,380,380);
+    let cellSize = 20;
+    snakeCtx.fillStyle = "#0f0"; snakeArr.forEach(seg => snakeCtx.fillRect(seg.x*cellSize, seg.y*cellSize, cellSize-1, cellSize-1));
+    snakeCtx.fillStyle = "red"; snakeCtx.fillRect(snakeFood.x*cellSize, snakeFood.y*cellSize, cellSize-1, cellSize-1);
+}
+
+let tetrisCanvas, tetrisCtx, tetrisLoop, tetrisScore = 0, tetrisBoard = Array(20).fill().map(() => Array(10).fill(0));
+let tetrisPieces = [[[1,1,1,1]], [[1,1],[1,1]], [[0,1,0],[1,1,1]]];
+let tetrisCurrentPiece, tetrisCurrentX, tetrisCurrentY;
+function startTetrisGame() {
+    document.getElementById("tetrisCanvas").style.display = "block";
+    document.getElementById("snakeCanvas").style.display = "none";
+    tetrisScore = 0;
+    tetrisBoard = Array(20).fill().map(() => Array(10).fill(0));
+    tetrisCanvas = document.getElementById("tetrisCanvas"); tetrisCtx = tetrisCanvas.getContext("2d");
+    if(tetrisLoop) clearInterval(tetrisLoop);
+    spawnTetrisPiece();
+    tetrisLoop = setInterval(updateTetris, 500);
+    drawTetris();
+}
+function spawnTetrisPiece() { tetrisCurrentPiece = JSON.parse(JSON.stringify(tetrisPieces[Math.floor(Math.random()*tetrisPieces.length)])); tetrisCurrentX = Math.floor((10 - tetrisCurrentPiece[0].length)/2); tetrisCurrentY = 0; }
+function updateTetris() {
+    tetrisCurrentY++;
+    if(collisionTetris()) { tetrisCurrentY--; mergeTetrisPiece(); clearLinesTetris(); spawnTetrisPiece(); if(collisionTetris()) { clearInterval(tetrisLoop); alert("GAME OVER! Счёт: " + tetrisScore); startTetrisGame(); return; } }
+    drawTetris();
+}
+function collisionTetris() {
+    for(let y=0; y<tetrisCurrentPiece.length; y++) for(let x=0; x<tetrisCurrentPiece[0].length; x++) if(tetrisCurrentPiece[y][x] && (tetrisCurrentY+y >= 20 || tetrisCurrentX+x < 0 || tetrisCurrentX+x >= 10 || tetrisBoard[tetrisCurrentY+y][tetrisCurrentX+x])) return true;
+    return false;
+}
+function mergeTetrisPiece() { for(let y=0; y<tetrisCurrentPiece.length; y++) for(let x=0; x<tetrisCurrentPiece[0].length; x++) if(tetrisCurrentPiece[y][x]) tetrisBoard[tetrisCurrentY+y][tetrisCurrentX+x] = 1; }
+function clearLinesTetris() { let linesCleared = 0; for(let y=0; y<20; y++) if(tetrisBoard[y].every(cell => cell === 1)) { tetrisBoard.splice(y,1); tetrisBoard.unshift(Array(10).fill(0)); linesCleared++; y--; } tetrisScore += linesCleared * 100; document.getElementById("gameScore").innerHTML = "SCORE: "+tetrisScore; }
+function drawTetris() {
+    tetrisCtx.fillStyle = "black"; tetrisCtx.fillRect(0,0,300,400);
+    let cellSize = 20;
+    for(let y=0; y<20; y++) for(let x=0; x<10; x++) if(tetrisBoard[y][x]) { tetrisCtx.fillStyle = getComputedStyle(document.body).color; tetrisCtx.fillRect(x*cellSize, y*cellSize, cellSize-1, cellSize-1); }
+    for(let y=0; y<tetrisCurrentPiece.length; y++) for(let x=0; x<tetrisCurrentPiece[0].length; x++) if(tetrisCurrentPiece[y][x]) { tetrisCtx.fillStyle = getComputedStyle(document.body).color; tetrisCtx.fillRect((tetrisCurrentX+x)*cellSize, (tetrisCurrentY+y)*cellSize, cellSize-1, cellSize-1); }
+}
+document.addEventListener("keydown", (e) => {
+    if(tetrisLoop) {
+        if(e.key === "ArrowLeft") { tetrisCurrentX--; if(collisionTetris()) tetrisCurrentX++; drawTetris(); }
+        else if(e.key === "ArrowRight") { tetrisCurrentX++; if(collisionTetris()) tetrisCurrentX--; drawTetris(); }
+        else if(e.key === "ArrowDown") { tetrisCurrentY++; if(collisionTetris()) tetrisCurrentY--; drawTetris(); }
+    }
+    if(snakeGameActive) {
+        if(e.key === "ArrowUp" && snakeDir.y !== 1) snakeDir = {x:0, y:-1};
+        else if(e.key === "ArrowDown" && snakeDir.y !== -1) snakeDir = {x:0, y:1};
+        else if(e.key === "ArrowLeft" && snakeDir.x !== 1) snakeDir = {x:-1, y:0};
+        else if(e.key === "ArrowRight" && snakeDir.x !== -1) snakeDir = {x:1, y:0};
+    }
+});
+
+// ========== БРАУЗЕР ==========
+function browserGo() {
+    let url = document.getElementById("browserUrl").value.trim().toLowerCase();
+    let content = document.getElementById("browserContent");
+    if(url === "" || url === "kpk://home") content.innerHTML = `<div style="padding:20px; text-align:center;">🌐 KPK BROWSER<br>📌 kpk://news | kpk://ipgen | kpk://scan</div>`;
+    else if(url === "kpk://news") content.innerHTML = `<div>🔥 НОВОСТИ: KPK V2.0 с Paint, Плеером и Часами!<br>🇦🇿 Добавлен Азербайджан в мировые часы!</div>`;
+    else if(url === "kpk://ipgen") { let ips=[]; for(let i=0;i<20;i++) ips.push(`${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`); content.innerHTML = `<div>🔍 IP:<br>${ips.join('<br>')}<button onclick="browserGoTo('kpk://ipgen')">🔄</button></div>`; }
+    else if(url === "kpk://scan") content.innerHTML = `<div>🔎 ПОРТЫ: 22🔓 80🔓 443🔓</div>`;
+    else content.innerHTML = `<div>❌ Страница не найдена</div>`;
+}
+function browserGoTo(url) { document.getElementById("browserUrl").value = url; browserGo(); }
+
+// ========== ТЕРМИНАЛ ==========
+let cmdHistory = [], historyIndex = -1;
+function runCmd() {
+    let input = document.getElementById("cmd");
+    let raw = input.value.trim();
+    if(raw === "") return;
+    cmdHistory.push(raw); historyIndex = cmdHistory.length;
+    let cmd = raw.toLowerCase();
+    let term = document.getElementById("terminal");
+    let time = new Date().toLocaleTimeString();
+    term.innerHTML += `<div class="terminal-line">[${time}] ➜ ${escapeHtml(raw)}</div>`;
+    let output = "";
+    
+    if(cmd === "help") output = `КОМАНДЫ: help, system, battery, clear, reboot, files, browser, editor, paint, player, alarm, snake, tetris, genpass, weather, iplist, scanip, ports`;
+    else if(cmd === "system") output = `🖥️ KPK V2.0 | Paint + Плеер + Часы (🇦🇿 Баку)\n🔋 ${Math.floor(batteryLevel)}%\n🌐 ${net?"ON":"OFF"}`;
+    else if(cmd === "battery") output = `🔋 Заряд: ${Math.floor(batteryLevel)}%`;
+    else if(cmd === "clear") { term.innerHTML = ""; input.value = ""; return; }
+    else if(cmd === "reboot") { output = "Перезагрузка..."; setTimeout(() => reboot(), 1000); }
+    else if(cmd === "files") { openApp('files'); output = "📁 Файлы открыты"; }
+    else if(cmd === "browser") { openApp('browser'); output = "🌐 Браузер открыт"; }
+    else if(cmd === "editor") { openApp('editor'); output = "✏️ Редактор открыт"; }
+    else if(cmd === "paint") { openApp('paint'); output = "🎨 Paint открыт"; }
+    else if(cmd === "player") { openApp('player'); output = "🎵 Плеер открыт"; }
+    else if(cmd === "alarm") { openApp('alarm'); output = "⏰ Часы открыты"; }
+    else if(cmd === "snake") { openApp('games'); setTimeout(() => startSnakeGame(), 100); output = "🐍 Змейка запущена!"; }
+    else if(cmd === "tetris") { openApp('games'); setTimeout(() => startTetrisGame(), 100); output = "🧩 Тетрис запущен!"; }
+    else if(cmd === "genpass") { let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%", pass=""; for(let i=0;i<12;i++) pass+=chars[Math.floor(Math.random()*chars.length)]; output = `🔐 Пароль: ${pass}`; }
+    else if(cmd === "weather") { output = `🌤️ Погода: ${Math.floor(Math.random()*30-10)}°C, ветер ${Math.floor(Math.random()*15)} м/с`; }
+    else if(cmd === "iplist") { let ips=[]; for(let i=0;i<10;i++) ips.push(`${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`); output = `🌍 IP:\n${ips.join('\n')}`; }
+    else if(cmd === "scanip") { output = `🔍 Сканирование: порты 22,80,443 открыты`; }
+    else if(cmd === "ports") { output = "🔌 Порты: 22🔓 80🔓 443🔓"; }
+    else output = `❌ Неизвестно: ${raw}. Введите help`;
+    
+    if(output) term.innerHTML += `<div class="terminal-line">${output.replace(/\n/g, '<br>')}</div>`;
+    term.scrollTop = term.scrollHeight;
+    input.value = "";
+}
+function escapeHtml(str) { return str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;'); }
+document.getElementById("cmd")?.addEventListener("keypress", (e) => { if(e.key === "Enter") runCmd(); });
+
+function setTheme(theme) { document.body.className = `theme-${theme}`; localStorage.setItem('kpk_theme', theme); if(tetrisLoop) drawTetris(); }
+function clearStorage() { if(confirm("Очистить все данные? Файлы, заметки, плейлисты, будильники будут удалены!")) { localStorage.clear(); location.reload(); } }
+let savedTheme = localStorage.getItem('kpk_theme'); if(savedTheme) setTheme(savedTheme);
+function saveNotes() { localStorage.setItem('kpk_notes', document.getElementById("notesArea").value); alert("💾 Заметки сохранены!"); }
+function loadNotes() { let saved = localStorage.getItem('kpk_notes'); if(saved) document.getElementById("notesArea").value = saved; }
+
+function makeDraggable(win) {
+    let header = win.querySelector("header");
+    if(!header) return;
+    let closeBtn = header.querySelector(".close-btn"), minimizeBtn = header.querySelector(".minimize-btn");
+    let isDragging = false, startX, startY, left, top;
+    function getCoords(e) { return { x: e.clientX ?? (e.touches?.[0]?.clientX ?? 0), y: e.clientY ?? (e.touches?.[0]?.clientY ?? 0) }; }
+    function onStart(e) {
+        if((closeBtn && (e.target === closeBtn || closeBtn.contains(e.target))) || (minimizeBtn && (e.target === minimizeBtn || minimizeBtn.contains(e.target)))) return;
+        e.preventDefault();
+        isDragging = true;
+        let rect = win.getBoundingClientRect();
+        let coords = getCoords(e);
+        startX = coords.x - rect.left;
+        startY = coords.y - rect.top;
+        left = rect.left; top = rect.top;
+        win.style.left = left + "px"; win.style.top = top + "px";
+    }
+    function onMove(e) {
+        if(!isDragging) return;
+        e.preventDefault();
+        let coords = getCoords(e);
+        let newLeft = coords.x - startX;
+        let newTop = coords.y - startY;
+        newLeft = Math.min(Math.max(0, newLeft), window.innerWidth - win.offsetWidth);
+        newTop = Math.min(Math.max(20, newTop), window.innerHeight - win.offsetHeight);
+        win.style.left = newLeft + "px"; win.style.top = newTop + "px";
+    }
+    function onEnd() { isDragging = false; }
+    header.addEventListener("mousedown", onStart);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onEnd);
+    header.addEventListener("touchstart", onStart, {passive: false});
+    window.addEventListener("touchmove", onMove, {passive: false});
+    window.addEventListener("touchend", onEnd);
+}
+document.querySelectorAll(".window").forEach(makeDraggable);
+
+function reboot() {
+    document.getElementById("shutdown").style.display = "none";
+    let boot = document.getElementById("bootScreen"), percent = 0;
+    boot.style.display = "flex";
+    let int = setInterval(() => {
+        percent += Math.random() * 6;
+        if(percent > 100) percent = 100;
+        document.getElementById("bootBar").style.width = percent + "%";
+        document.getElementById("bootPercent").innerText = Math.floor(percent) + "%";
+        if(percent >= 100) { clearInterval(int); setTimeout(() => location.reload(), 600); }
+    }, 100);
+}
+window.reboot = reboot;
+
+window.addEventListener("load", () => {
+    if(batteryLevel <= 0) document.getElementById("shutdown").style.display = "flex";
+    refreshFileList();
+    loadNotes();
+    initPaint();
+    let term = document.getElementById("terminal");
+    if(term) term.innerHTML = `<div class="terminal-line">[SYSTEM] KPK V2.0 загружена</div>
+<div class="terminal-line">[SYSTEM] 🎨 Paint | 🎵 Плеер (добавляй свои песни!) | ⏰ Часы с будильником</div>
+<div class="terminal-line">[SYSTEM] 🇦🇿 Добавлен Азербайджан (Баку) в мировые часы</div>
+<div class="terminal-line">[SYSTEM] Введите help для справки</div>`;
+    document.querySelectorAll(".window").forEach((win, idx) => { win.style.left = (20 + idx * 25) + "px"; win.style.top = (70 + idx * 15) + "px"; });
+    refreshPlayer();
+});
+document.addEventListener("keydown", (e) => { if(e.key === "F5") { e.preventDefault(); if(batteryLevel <= 0) location.reload(); } });
+
+window.closeApp = closeApp;
+window.minimizeWindow = minimizeWindow;
+window.navigateTo = navigateTo;
+window.openFile = openFile;
+window.createFolder = createFolder;
+window.createFile = createFile;
+window.refreshFileList = refreshFileList;
+window.editorSave = editorSave;
+window.editorLoad = editorLoad;
+window.startSnakeGame = startSnakeGame;
+window.startTetrisGame = startTetrisGame;
+window.saveNotes = saveNotes;
+window.setTheme = setTheme;
+window.clearStorage = clearStorage;
+window.browserGo = browserGo;
+window.showMyIP = showMyIP;
+window.setPaintColor = setPaintColor;
+window.clearPaint = clearPaint;
+window.savePaint = savePaint;
+window.loadPlayerFolder = loadPlayerFolder;
+window.selectTrack = selectTrack;
+window.playTrack = playTrack;
+window.pauseTrack = pauseTrack;
+window.stopTrack = stopTrack;
+window.createPlayerFolder = createPlayerFolder;
+window.addTrackToCurrentFolder = addTrackToCurrentFolder;
+window.deleteTrack = deleteTrack;
+window.addAlarm = addAlarm;
+window.removeAlarm = removeAlarm;
+window.stopAlarm = stopAlarm;
+</script>
+</body>
+</html>
